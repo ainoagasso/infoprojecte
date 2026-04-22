@@ -1,24 +1,30 @@
 
-
-
-
 from airport import *
 
 airports = LoadAirports("Airports.txt")
 
-for airport in airports:
-    SetSchengen(airport)
-
-SaveSchengenAirports(airports, 'SchengenAirports.txt')
-
-airport_existe = Airport ("LEBL", 41.297445, 2.0832941)
-
+airport_existe = Airport ("LECC", 43.297445, 2.0832941,False)
 print(len(airports))
+
+
 AddAirport(airports,airport_existe)
 print(len(airports))
 
-RemoveAirport(airports,"LEBL")
+for airport in airports:
+    SetSchengen(airport)
+
+
+RemoveAirport(airports,"BIKF")
 print(len(airports))
+
+SaveSchengenAirports(airports, 'SchengenAirports.txt')
+
+PlotAirports(airports)
+
+
+MapAirports(airports)
+
+
 
 
 
