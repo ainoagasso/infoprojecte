@@ -6,18 +6,18 @@ import aircraft as ar
 
 
 
-airports = []
+list_airports = []
 aircrafts=[]
 
 def actualitzar_pantalla():
     llista_airports.delete(0, tk.END) # Esborra tota la llista de la pantalla
     i = 0
-    while i < len(airports):
-        if airports[i].schengen==True:
+    while i < len(list_airports):
+        if list_airports[i].schengen==True:
             estat="Schengen"
         else:
             estat="No Schengen"
-        text = airports[i].ICAO + " - " + str(round(airports[i].latitude,4)) + " - " + str(round(airports[i].longitude,4)) + " - " + estat
+        text = list_airports[i].ICAO + " - " + str(round(list_airports[i].latitude,4)) + " - " + str(round(list_airports[i].longitude,4)) + " - " + estat
         llista_airports.insert(tk.END, text)
         i = i + 1
 
@@ -31,13 +31,13 @@ def actualitzar_pantalla2():
 
 
 def boto_carregar():
-    global airports
+    global list_airports
     ruta = filedialog.askopenfilename()
     if ruta:
-        airports = ap.LoadAirports(ruta)
+        list_airports = ap.LoadAirports(ruta)
         actualitzar_pantalla()
         label_result.config(text="Airports loaded: " +
-str(len(airports)), fg="green")
+str(len(list_airports)), fg="green")
     else:
         label_result.config(text="Please enter a filename to load", fg="red")
 
@@ -70,18 +70,30 @@ def boto_afegir():
     e_lon.pack(pady=5)
 
     def guardar_nou():
+        global list_airports
         try:
-            nou = ap.Airport(e_icao.get().upper(), float(e_lat.get()), float(e_lon.get()))
-            ap.AddAirport(airports, nou)
+            codi_escrit = e_icao.get().upper().strip()
+            lat_escrita = e_lat.get()
+            lon_escrita = e_lon.get()
+
+            es_schengen = ap.IsSchengenAirport(codi_escrit)
+
+
+            objecte_aeroport_nou = ap.Airport(codi_escrit, float(lat_escrita), float(lon_escrita), es_schengen)
+
+            ap.AddAirport(list_airports, objecte_aeroport_nou)
+
             actualitzar_pantalla()
             f_nova.destroy()
-        except:
-            label_result.config(text="Error in airport data",fg="red")
+        except ValueError:
+            label_result.config(text="Error: Lat/Lon han de ser números", fg="red")
+        except Exception as e:
+            label_result.config(text="Error al guardar l'aeroport", fg="red")
 
     tk.Button(f_nova, text="Guardar", command=guardar_nou).pack(pady=5)
 
 def boto_guardar_aeroports():
-    global airports
+    global list_airports
     fitxer_desti = filedialog.asksaveasfilename(
         defaultextension=".txt",
         filetypes=[("Fitxers de text", "*.txt"), ("Tots els fitxers", "*.*")],
@@ -89,7 +101,7 @@ def boto_guardar_aeroports():
     )
 
     if fitxer_desti:
-        resultat = ap.SaveSchengenAirports(airports, fitxer_desti)
+        resultat = ap.SaveSchengenAirports(list_airports, fitxer_desti)
 
         if resultat == 0:
             label_result.config(text="Aeroports schengen guardats amb èxit", fg="green")
@@ -118,53 +130,53 @@ def boto_eliminar():
     index = llista_airports.curselection()
     if index:
         posicio = index[0]
-        codi = airports[posicio].ICAO
-        ap.RemoveAirport(airports, codi)
+        codi = list_airports[posicio].ICAO
+        ap.RemoveAirport(list_airports, codi)
         actualitzar_pantalla()
 
 def boto_schengen():
     i = 0
-    while i < len(airports):
-        ap.SetSchengen(airports[i])
+    while i < len(list_airports):
+        ap.SetSchengen(list_airports[i])
         i = i + 1
     actualitzar_pantalla()
     label_result.config(text="Schengen updated", fg="green")
 
 def boto_grafic():
-    ap.PlotAirports(airports)
+    ap.PlotAirports(list_airports)
 
 def boto_mapa():
-    ap.MapAirports(airports)
+    ap.MapAirports(list_airports)
 
 def PlotArrivalsButton():
-    if len(airports) == 0:
+    if len(list_airports) == 0:
         label_result.config(text="Load airports first")
         return
     ar.PlotArrivals(aircrafts)
 
 def PlotAirlinesButton():
-    if len(airports) == 0:
+    if len(list_airports) == 0:
         label_result.config(text="Load airports first")
         return
     ar.PlotAirlines(aircrafts)
 
 def PlotFlightsTypeButton():
-    if len(airports) == 0:
+    if len(list_airports) == 0:
         label_result.config(text="Load airports first")
         return
     ar.PlotFlightsType(aircrafts)
 
 def boto_mapa2():
-    ar.MapFlights(aircrafts, airports)
+    ar.MapFlights(aircrafts, list_airports)
 
 def ShowLongDistanceButton():
     global aircrafts
-    global airports
-    if len(airports) == 0:
+    global list_airports
+    if len(list_airports) == 0:
         label_result.config(text="Load airports first")
         return
 
-    aircrafts = ar.LongDistanceArrivals(aircrafts,airports)
+    aircrafts = ar.LongDistanceArrivals(aircrafts,list_airports)
     actualitzar_pantalla2()
     label_result.config(text="Long distance flights shown: " +
                              str(len(aircrafts)))
