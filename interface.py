@@ -10,16 +10,27 @@ list_airports = []
 aircrafts=[]
 
 def actualitzar_pantalla():
+    global list_airports
     llista_airports.delete(0, tk.END) # Esborra tota la llista de la pantalla
+    mida=len(list_airports)
     i = 0
-    while i < len(list_airports):
-        if list_airports[i].schengen==True:
+    while i < mida:
+        aero=list_airports[i]
+        if aero.schengen==True:
             estat="Schengen"
         else:
             estat="No Schengen"
-        text = list_airports[i].ICAO + " - " + str(round(list_airports[i].latitude,4)) + " - " + str(round(list_airports[i].longitude,4)) + " - " + estat
+        try:
+            lat_neta = round(float(aero.latitude), 4)
+            lon_neta = round(float(aero.longitude), 4)
+        except:
+            # Si no es pot convertir, utilitzem el valor tal qual
+            lat_neta = aero.latitude
+            lon_neta = aero.longitude
+        text = str(aero.ICAO) + " - " + str(lat_neta) + " - " + str(lon_neta) + " - " + estat
         llista_airports.insert(tk.END, text)
         i = i + 1
+
 
 def actualitzar_pantalla2():
     llista_aircrafts.delete(0, tk.END)
@@ -34,7 +45,9 @@ def boto_carregar():
     global list_airports
     ruta = filedialog.askopenfilename()
     if ruta:
-        list_airports = ap.LoadAirports(ruta)
+        noves = ap.LoadAirports(ruta)
+        list_airports.clear()
+        list_airports.extend(noves)
         actualitzar_pantalla()
         label_result.config(text="Airports loaded: " +
 str(len(list_airports)), fg="green")
@@ -79,12 +92,13 @@ def boto_afegir():
             es_schengen = ap.IsSchengenAirport(codi_escrit)
 
 
-            objecte_aeroport_nou = ap.Airport(codi_escrit, float(lat_escrita), float(lon_escrita), es_schengen)
+            nou = ap.Airport(codi_escrit, float(lat_escrita), float(lon_escrita), es_schengen)
 
-            ap.AddAirport(list_airports, objecte_aeroport_nou)
+            ap.AddAirport(list_airports, nou)
 
             actualitzar_pantalla()
             f_nova.destroy()
+            label_result.config(text="Aeroport afegit", fg="green")
         except ValueError:
             label_result.config(text="Error: Lat/Lon han de ser números", fg="red")
         except Exception as e:
