@@ -56,36 +56,30 @@ def LoadArrivals (Filename):
 
 
 def PlotArrivals(aircrafts):
-   if len(aircrafts)==0:
-       print("LLista buida")
-       return
-   i=0
-   count=[0]*24
-   while i<len(aircrafts):
-       time=aircrafts[i].time
-       trozos=time.split(':')
-       hores=int(trozos[0])
-       count[hores]=count[hores]+1
-       i=i+1
-   X=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
-   plt.figure(figsize=(10, 5))
+    fig,ax=plt.subplots(figsize=(10, 5))
+    if len(aircrafts)==0:
+        print("LLista buida")
+        return
+    i=0
+    count=[0]*24
+    while i<len(aircrafts):
+        time=aircrafts[i].time
+        trozos=time.split(':')
+        hores=int(trozos[0])
+        count[hores]=count[hores]+1
+        i=i+1
+    X=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
 
-   plt.bar(X, count, color='skyblue')
+    ax.bar(X, count, color='skyblue')
 
-
-   plt.xlabel("Hora del dia")
-   plt.ylabel("Nombre d'aterratges")
-   plt.title("Freqüència d'arribades per franja horària")
-
-
+    ax.set_xlabel("Hora del dia")
+    ax.set_ylabel("Nombre d'aterratges")
+    ax.set_title("Freqüència d'arribades per franja horària")
 
    # Marquem totes les hores a sota perquè es llegeixin bé
-   plt.xticks(X)
-
-
-
-
-   plt.show()
+    ax.set_xticks(X)
+    fig.tight_layout()
+    return fig
 
 def SaveFlights(aircrafts,filename):
    if len(aircrafts)==0:
@@ -117,6 +111,7 @@ def SaveFlights(aircrafts,filename):
    return 0
 
 def PlotAirlines(aircrafts):
+    fig,ax = plt.subplots(figsize=(14,6))
     if len(aircrafts)==0:
         print("Llista buida")
         return -1
@@ -138,17 +133,17 @@ def PlotAirlines(aircrafts):
         else:
             Y[k]=Y[k]+1
         i=i+1
-    plt.figure(figsize=(12,6))
-    plt.bar(X,Y)
-    plt.title("Nombre de vols per companyia aèria")
-    plt.xlabel("Companyia")
-    plt.ylabel("Freqüència")
+
+    ax.bar(X,Y)
+    ax.set_title("Nombre de vols per companyia aèria")
+    ax.set_xlabel("Companyia")
+    ax.set_ylabel("Freqüència")
+
+    fig.tight_layout()
+    ax.tick_params(axis='x', rotation=90,labelsize=6)
 
 
-    plt.xticks(rotation=90, fontsize=8)
-
-    plt.tight_layout()
-    plt.show()
+    return fig
 
 import matplotlib.pyplot as plt
 
@@ -157,33 +152,33 @@ EsSc=['LO', 'EB', 'LK', 'LC', 'EK', 'EE', 'EF', 'LF', 'ED', 'LG', 'EH', 'LH', 'B
 
 
 def PlotFlightsType(aircrafts):
-   if len(aircrafts) == 0:
-       print("Error: La llista d'aeronaus està buida.")
-       return
-   schengen_count=0
-   noschengen_count=0
-   i=0
-   while i<len(aircrafts):
-       j = 0
-       trobat=False
-       while j<len(EsSc) and not trobat:
-           if aircrafts[i].airport[0:2]==EsSc[j]:
-               trobat=True
-           else:
-               j+=1
-       if trobat:
-           schengen_count+=1
-
-
-       else:
-           noschengen_count+=1
-       i+=1
-   plt.bar("Tipus de vol", schengen_count, label="schengen",color="green")
-   plt.bar("Tipus de vol", noschengen_count, label="no schengen",color="red",alpha=0.8, bottom=schengen_count)
-   plt.ylabel("Nombre de vols")
-   plt.xlabel("Origen")
-   plt.legend()
-   plt.show()
+    fig,ax = plt.subplots()
+    if len(aircrafts) == 0:
+        print("Error: La llista d'aeronaus està buida.")
+        return
+    schengen_count=0
+    noschengen_count=0
+    i=0
+    while i<len(aircrafts):
+        j = 0
+        trobat=False
+        while j<len(EsSc) and not trobat:
+            if aircrafts[i].airport[0:2]==EsSc[j]:
+                trobat=True
+            else:
+                j+=1
+        if trobat:
+            schengen_count+=1
+        else:
+            noschengen_count+=1
+        i+=1
+    ax.bar("Tipus de vol", schengen_count, label="schengen",color="green")
+    ax.bar("Tipus de vol", noschengen_count, label="no schengen",color="red",alpha=0.8, bottom=schengen_count)
+    ax.set_ylabel("Nombre de vols")
+    ax.set_xlabel("Origen")
+    ax.legend()
+    fig.tight_layout()
+    return fig
 
 
 def MapFlights(aircrafts, airports):

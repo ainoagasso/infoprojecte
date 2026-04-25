@@ -129,6 +129,7 @@ import os
 import matplotlib.pyplot as plt
 
 def PlotAirports(airports):
+    fig, ax = plt.subplots()
     schengen = 0
     noschengen = 0
     i = 0
@@ -138,12 +139,13 @@ def PlotAirports(airports):
         else:
             noschengen = noschengen + 1
         i = i + 1
-    plt.bar(["Airports"],[schengen],label="Schengen")
-    plt.bar(["Airports"],[noschengen],bottom=[schengen],label="No Schengen")
-    plt.ylabel("Number of airports")
-    plt.title("Schengen / No Schengen")
-    plt.legend()
-    plt.show()
+    ax.bar(["Airports"],[schengen],label="Schengen")
+    ax.bar(["Airports"],[noschengen],bottom=[schengen],label="No Schengen")
+    ax.set_ylabel("Number of airports")
+    ax.set_title("Schengen / No Schengen")
+    ax.legend()
+    fig.tight_layout()
+    return fig
 
 def MapAirports(airports):
    f = open("airports.kml", "w")
