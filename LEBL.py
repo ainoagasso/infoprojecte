@@ -172,11 +172,11 @@ def AssignGate (bcn,aircraft):
         return -1
 
     terminal_obj = None
-    t = 0
-    while t < len(bcn.terminals):
-        if bcn.terminals[t].name == T:
-            terminal_obj = bcn.terminals[t]
-        t = t + 1
+    i = 0
+    while i < len(bcn.terminals):
+        if bcn.terminals[i].name == T:
+            terminal_obj = bcn.terminals[i]
+        i = i + 1
     if terminal_obj == None:
         return -1
 
@@ -190,9 +190,9 @@ def AssignGate (bcn,aircraft):
             i=i+1
 
     encontrado=False
-    a=0
-    while a<len(terminal_obj.boarding_areas) and not encontrado:
-        area = terminal_obj.boarding_areas[a]
+    n=0
+    while n<len(terminal_obj.boarding_areas) and not encontrado:
+        area = terminal_obj.boarding_areas[n]
         area_correcta = False
 
         if schengen and area.type == "Schengen":
@@ -210,7 +210,7 @@ def AssignGate (bcn,aircraft):
                     area.gates[k].aircraft_id=aircraft.id
                 else:
                     k=k+1
-        a=a+1
+        n=n+1
     if encontrado:
         return 0
 
@@ -282,11 +282,11 @@ def DibuixarGraficSenzill(llista_portes, canvas_tk):
         canvas_tk.create_text(200, 100, text="No hi ha portes per mostrar")
         return
 
-    x = 10
-    y_top = 30
     amplada_barra = 20
     espai = 10
     alcada_max = 120
+    x1 = 10
+    x2 = 10
 
     k = 0
     while k < len(llista_portes):
@@ -296,14 +296,21 @@ def DibuixarGraficSenzill(llista_portes, canvas_tk):
         color = "green"
         if porta["status"] == "occupied":
             color = "red"
+        if porta["name"][0:2]=="T1":
+            y_top=30
+            # Dibuixem el rectangle
+            canvas_tk.create_rectangle(x1, y_top, x1 + amplada_barra, y_top + alcada_max, fill=color)
+            # Text del nom de la porta a sota
+            canvas_tk.create_text(x1 + amplada_barra/2, y_top + alcada_max + 20, text=porta["name"], angle=90, font=("Arial", 8))
 
-        # Dibuixem el rectangle
-        canvas_tk.create_rectangle(x, y_top, x + amplada_barra, y_top + alcada_max, fill=color)
+            x1 = x1 + 30
+        else:
+            y_top = 300
+            canvas_tk.create_rectangle(x2, y_top, x2 + amplada_barra, y_top + alcada_max, fill=color)
+            canvas_tk.create_text(x2 + amplada_barra / 2, y_top + alcada_max + 20, text=porta["name"], angle=90,
+                                  font=("Arial", 8))
+            x2 = x2 + 30
 
-        # Text del nom de la porta a sota
-        canvas_tk.create_text(x + amplada_barra/2, y_top + alcada_max + 20, text=porta["name"], angle=90, font=("Arial", 8))
-
-        x = x + 30
         k += 1
 
     canvas_tk.update_idletasks()
