@@ -8,5 +8,6 @@ Deals with the management of information about airports. It has basic functional
 Includes information about flights arriving to Barcelona's airport. The video is shown in the following link: https://youtu.be/dG3_dl1ZM-4?si=uQZRTiECZs_wGKOl
 
 ## Versió 3
-Includes functionalities for gate management in LEBL airport, is a simple model for airport gate organization.
+Includes functionalities for gate management in LEBL airport, is a simple model for airport gate organization. The video is shown in the following link: https://youtu.be/dp0UtcVsp5I?si=96iR0cTywkh2ju7t
+
 
