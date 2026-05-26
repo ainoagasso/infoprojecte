@@ -140,9 +140,9 @@ def PlotAirports(airports):
             noschengen = noschengen + 1
         i = i + 1
     ax.bar(["Airports"],[schengen],label="Schengen")
-    ax.bar(["Airports"],[noschengen],bottom=[schengen],label="No Schengen")
+    ax.bar(["Airports"],[noschengen],bottom=[schengen],label="non-Schengen")
     ax.set_ylabel("Number of airports")
-    ax.set_title("Schengen / No Schengen")
+    ax.set_title("Schengen / non-Schengen")
     ax.legend()
     fig.tight_layout()
     return fig

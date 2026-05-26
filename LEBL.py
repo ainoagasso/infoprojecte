@@ -22,7 +22,7 @@ class Gate:
         self.name = name
         self.occupancy = False
         self.aircraft_id = ""
-
+        self.aircraft=None
 
 
 def SetGates(area, init_gate, end_gate, prefix):
@@ -198,7 +198,7 @@ def AssignGate (bcn,aircraft):
         if schengen and area.type == "Schengen":
             area_correcta = True
 
-        if not schengen and area.type == "No-Schengen":
+        if not schengen and area.type == "non-Schengen":
             area_correcta = True
 
         if area_correcta:
@@ -208,6 +208,7 @@ def AssignGate (bcn,aircraft):
                     encontrado=True
                     area.gates[k].occupancy=True
                     area.gates[k].aircraft_id=aircraft.id
+                    area.gates[k].aircraft = aircraft
                 else:
                     k=k+1
         n=n+1
@@ -216,104 +217,185 @@ def AssignGate (bcn,aircraft):
 
     return -1
 
+#per no saturar una boarding area
+def seleccionar_millor_gate(bcn, avio):
+    schengen = False
+    i = 0
 
-import tkinter as tk
-def DibuixarPlanoTerminal(bcn, canvas_tk):
+    while i < len(EsSc) and not schengen:
+        A_id = avio.airport[0:2]
+
+        if EsSc[i] == A_id:
+            schengen = True
+        else:
+            i += 1
+
+    millor_gate = None
+    millor_score = 10**9
+
+    for terminal in bcn.terminals:
+        for area in terminal.boarding_areas:
+            for gate in area.gates:
+
+                # 1. només gates lliures
+                if gate.occupancy:
+                    continue
+                # 2. Schengen
+                if area.type == "Schengen" and not schengen:
+                    continue
+                if area.type == "non-Schengen" and schengen:
+                    continue
+
+                score = 0
+                # preferència per gates buides en àrees menys saturades
+                ocupades_area = sum(1 for g in area.gates if g.occupancy)
+                score += ocupades_area * 10
+
+                # preferir terminals menys saturats
+                ocupades_terminal = 0
+                for a in terminal.boarding_areas:
+                    ocupades_terminal += sum(1 for g in a.gates if g.occupancy)
+
+                score += ocupades_terminal * 2
+
+                # lleu penalització per distància "visual" (opcional)
+                score += len(area.gates)
+
+                # 4. millor gate
+                if score < millor_score:
+                    millor_score = score
+                    millor_gate = gate
+
+    return millor_gate
+
+def ResetGates(bcn):
+    for terminal in bcn.terminals:
+        for area in terminal.boarding_areas:
+            for gate in area.gates:
+                gate.occupancy = False
+                gate.aircraft_id = ""
+                gate.aircraft=None
+
+#si hi ha una boarding area amb moltes gates ocupades no l'assignarà allà
+def IntelligentAssign(bcn, aircrafts):
+    assignats = 0
+    no_assignats = 0
+
+    ResetGates(bcn)
+
+    for avio in aircrafts:
+        gate = seleccionar_millor_gate(bcn, avio)
+
+        if gate is None:
+            no_assignats += 1
+            continue
+
+        gate.occupancy = True
+        gate.aircraft_id = avio.id
+        assignats += 1
+        gate.aircraft=avio
+
+    return assignats, no_assignats
+
+def DibuixarPlanoTerminal(bcn, canvas_tk, gates_ui):
     canvas_tk.delete("all")
-
-    # el passadís principal de la T1
-    canvas_tk.create_rectangle(50, 20, 800, 40, fill="#1a5276")  # Blau fosc
-    canvas_tk.create_text(30, 30, text="T1", font=("Arial", 14, "bold"))
-
+    gates_ui.clear()
     # boarding areas
     if len(bcn.terminals) == 0:
         return
-    t1 = bcn.terminals[0]
 
-    x_area = 100
-    a = 0
-    while a < len(t1.boarding_areas):
-        area = t1.boarding_areas[a]
+    x_terminal=50
+    t = 0
+    while t < len(bcn.terminals):
+
+        terminal = bcn.terminals[t]
+
+        # passadís principal
+        amplada_terminal = len(terminal.boarding_areas) * 220
+
+        canvas_tk.create_rectangle(x_terminal,20,x_terminal + amplada_terminal,40,fill="#1a5276", outline="")
+        canvas_tk.create_text(x_terminal + amplada_terminal/2,10,text=terminal.name,font=("Segoe UI", 14, "bold"))
+
+        x_area = x_terminal + 60
+        a = 0
+        while a < len(terminal.boarding_areas):
+            area = terminal.boarding_areas[a]
 
         # Dibuixem el braç vertical de l'àrea
-        altura = 50 + len(area.gates) * 30
-        canvas_tk.create_rectangle(x_area, 40, x_area + 20, altura, fill="#1a5276")
-        canvas_tk.create_text(x_area + 10, 270, text=area.name, font=("Arial", 10, "bold"))
+            altura = 90 + len(area.gates) * 32
 
-        # Dibuixem les portes a banda i banda del braç
-        y_porta = 60
-        g = 0
-        while g < len(area.gates):
-            porta = area.gates[g]
-            color = "green" if not porta.occupancy else "red"
+            # Ombra boarding area
+            canvas_tk.create_rectangle(x_area + 4,44,x_area + 24,altura + 4,fill="#5d6d7e",outline="")
+            # Braç principal
+            canvas_tk.create_rectangle(x_area,40,x_area + 20,altura,fill="#1a5276",outline="")
+            # Nom area
+            canvas_tk.create_text(x_area + 10,58,text=area.name,font=("Segoe UI", 10, "bold"),fill="white")
 
-            # Si l'índex és parell, a l'esquerra. Si és senar, a la dreta.
-            if g % 2 == 0:
-                # Porta a l'esquerra
-                canvas_tk.create_line(x_area, y_porta, x_area - 20, y_porta, width=3)
-                canvas_tk.create_rectangle(x_area - 40, y_porta - 5, x_area - 20, y_porta + 5, fill=color)
-                canvas_tk.create_text(x_area - 30, y_porta - 10, text=porta.name, font=("Arial", 6))
-                if porta.occupancy:  # Si està ocupada, posem el nom de l'avió
-                    canvas_tk.create_text(x_area - 60, y_porta, text=porta.aircraft_id, font=("Arial", 7))
-            else:
-                # Porta a la dreta
-                canvas_tk.create_line(x_area + 20, y_porta, x_area + 40, y_porta, width=3)
-                canvas_tk.create_rectangle(x_area + 40, y_porta - 5, x_area + 60, y_porta + 5, fill=color)
-                # Posem el nom de la porta (ex: T1BAaG1)
-                canvas_tk.create_text(x_area + 50, y_porta - 10, text=porta.name, font=("Arial", 6))
-                if porta.occupancy:  # Si està ocupada, posem el nom de l'avió
-                    canvas_tk.create_text(x_area + 80, y_porta, text=porta.aircraft_id, font=("Arial", 7))
+            y_porta = 85
+            g = 0
+            while g < len(area.gates):
 
-                y_porta += 60  # Baixem només cada dues portes per no amuntegar
+                porta = area.gates[g]
 
-            g = g + 1
+                if porta.occupancy:
+                    color = "#e74c3c" #vermell modern
+                else:
+                    color = "#2ecc71" #verd modern
 
+                if g % 2 == 0:
+                    # connexió esquerra
+                    canvas_tk.create_line(x_area,y_porta,x_area - 35,y_porta,width=4,fill="#34495e")
 
-        x_area += 150  # Separem la següent àrea (T1BAa, T1BAb...)
-        a += 1
+                    # gate esquerra
+                    rect=canvas_tk.create_rectangle(x_area - 90,y_porta - 10,x_area - 35,y_porta + 10,fill=color,outline="")
+                    gates_ui.append((x_area - 90, y_porta - 10, x_area - 35, y_porta + 10, porta, rect))
+                    canvas_tk.create_text(x_area - 62,y_porta - 18,text=porta.name,font=("Segoe UI", 7, "bold"))
 
-    canvas_tk.update_idletasks()
-    canvas_tk.config(scrollregion=canvas_tk.bbox("all"))
+                    # nom avió dins la gate
+                    if porta.occupancy:
+                        canvas_tk.create_text(x_area - 62,y_porta,text=porta.aircraft_id,font=("Segoe UI", 8, "bold"),fill="white")
 
-def DibuixarGraficSenzill(llista_portes, canvas_tk):
-    canvas_tk.delete("all")  # Netejar abans de dibuixar
+                else:
+                    # connexió dreta
+                    canvas_tk.create_line(x_area + 20,y_porta,x_area + 55,y_porta,width=4,fill="#34495e")
 
-    if len(llista_portes) == 0:
-        canvas_tk.create_text(200, 100, text="No hi ha portes per mostrar")
-        return
+                    # gate dreta
+                    rect=canvas_tk.create_rectangle(x_area + 55,y_porta - 10,x_area + 110,y_porta + 10,fill=color,outline="")
+                    gates_ui.append((x_area + 55, y_porta - 10, x_area + 110, y_porta + 10, porta, rect))
+                    canvas_tk.create_text(x_area + 82,y_porta - 18,text=porta.name,font=("Segoe UI", 7, "bold"))
 
-    amplada_barra = 20
-    espai = 10
-    alcada_max = 120
-    x1 = 10
-    x2 = 10
+                    #nom avió dins de gate
+                    if porta.occupancy:
+                        canvas_tk.create_text(x_area + 82,y_porta,text=porta.aircraft_id,font=("Segoe UI", 8, "bold"),fill="white")
 
-    k = 0
-    while k < len(llista_portes):
-        porta = llista_portes[k]
+                    y_porta += 55
+                g += 1
 
-        # Color según estado
-        color = "green"
-        if porta["status"] == "occupied":
-            color = "red"
-        if porta["name"][0:2]=="T1":
-            y_top=30
-            # Dibuixem el rectangle
-            canvas_tk.create_rectangle(x1, y_top, x1 + amplada_barra, y_top + alcada_max, fill=color)
-            # Text del nom de la porta a sota
-            canvas_tk.create_text(x1 + amplada_barra/2, y_top + alcada_max + 20, text=porta["name"], angle=90, font=("Arial", 8))
-
-            x1 = x1 + 30
-        else:
-            y_top = 300
-            canvas_tk.create_rectangle(x2, y_top, x2 + amplada_barra, y_top + alcada_max, fill=color)
-            canvas_tk.create_text(x2 + amplada_barra / 2, y_top + alcada_max + 20, text=porta["name"], angle=90,
-                                  font=("Arial", 8))
-            x2 = x2 + 30
-
-        k += 1
+            x_area += 220  # Separem la següent àrea (T1BAa, T1BAb...)
+            a += 1
+        x_terminal += amplada_terminal +250
+        t += 1
 
     canvas_tk.update_idletasks()
     canvas_tk.config(scrollregion=canvas_tk.bbox("all"))
+
+def AssignNightGates(bcn,aircrafts):
+    if len(aircrafts) == 0:
+        return -1
+
+    night= NightAircraft(aircrafts)
+    if night == -1:
+        return -1
+
+    i=0
+    while i < len(night):
+        ac=night[i]
+        sleep=Aircraft(ac.id, ac.company, "LEBL", "", ac.detination, ac.departure_time)
+        AssignGate(bcn,sleep)
+        i += 1
+
+    return 0
+
+
 
 

@@ -4,14 +4,33 @@ import airport as ap
 import aircraft as ar
 import LEBL as lbl
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 
-
-
+canvas_terminal=None
+gates_ui = []
+selected_gate = None
 list_airports = []
 aircrafts=[]
 bcn=None
+
+#pestanya petita al posicionar-se sobre una gate
+class Tooltip:
+    def __init__(self, widget):
+        self.widget = widget
+        self.tipwindow = None
+
+    def show(self, text, x, y):
+        self.hide()
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(tw,text=text,bg="#ffffe0",fg="black",font=("Segoe UI", 9),justify="left",relief="solid",borderwidth=1)
+        label.pack()
+
+    def hide(self):
+        if self.tipwindow:
+            self.tipwindow.destroy()
+            self.tipwindow = None
 
 
 def actualitzar_pantalla():
@@ -24,7 +43,7 @@ def actualitzar_pantalla():
         if aero.schengen==True:
             estat="Schengen"
         else:
-            estat="No Schengen"
+            estat="non-Schengen"
         try:
             lat_neta = round(float(aero.latitude), 4)
             lon_neta = round(float(aero.longitude), 4)
@@ -44,7 +63,6 @@ def actualitzar_pantalla2():
         text=aircrafts[i].id + " - " + aircrafts[i].company + " - " + aircrafts[i].airport + " - " + aircrafts[i].time
         llista_aircrafts.insert(tk.END, text)
         i = i + 1
-
 
 
 def boto_carregar():
@@ -241,7 +259,7 @@ def incrustar_grafic(figura):
     # 3. Col·loquem el gràfic dins del frame
     canvas.get_tk_widget().pack(fill="both", expand=True)
 
-def boto_assignar_gate():
+def boto_assignar_gate(): #jo la treuria
     global bcn
     global aircrafts
     if bcn==None:
@@ -269,10 +287,10 @@ def boto_assignar_gate():
         canvas = tk.Canvas(frame_grafic, width=800, height=500, bg="white")
         canvas.pack(fill="both", expand=True)
 
-        lbl.DibuixarGraficSenzill(ocupacio, canvas)
 
 def boto_mostrar_gates():
     global bcn
+    global canvas_terminal
     if bcn == None:
         label_result.config(text="Primer carrega LEBL",fg="red")
         return
@@ -291,54 +309,211 @@ def boto_mostrar_gates():
     scroll_y = tk.Scrollbar(container, orient="vertical")
     scroll_y.pack(side="right", fill="y")
 
-    canvas = tk.Canvas(container,width=800,height=500,bg="white",xscrollcommand=scroll_x.set,yscrollcommand=scroll_y.set)
+    canvas_terminal = tk.Canvas(container,width=800,height=500,bg="white",xscrollcommand=scroll_x.set,yscrollcommand=scroll_y.set)
 
-    canvas.pack(side="left", fill="both", expand=True)
+    canvas_terminal.pack(side="left", fill="both", expand=True)
 
     # connectar scrollbars
-    scroll_x.config(command=canvas.xview)
-    scroll_y.config(command=canvas.yview)
+    scroll_x.config(command=canvas_terminal.xview)
+    scroll_y.config(command=canvas_terminal.yview)
 
-    lbl.DibuixarPlanoTerminal(bcn,canvas)
-    canvas.update_idletasks()
-    canvas.config(scrollregion=canvas.bbox("all"))
+    gates_ui.clear()
+    lbl.DibuixarPlanoTerminal(bcn,canvas_terminal, gates_ui)
+    canvas_terminal.update_idletasks()
+    canvas_terminal.config(scrollregion=canvas_terminal.bbox("all"))
+    #important perquè funcioni correctament tot el click a les gates
+    canvas_terminal.bind("<Button-1>", detectar_click_gate)
+    canvas_terminal.bind("<Button-3>", detectar_click_gate)
+    canvas_terminal.bind("<Motion>", detectar_hover_gate)
+    canvas_terminal.bind("<Leave>", lambda e: tooltip.hide())
 
     label_result.config(text="Mostrant terminals i gates", fg="green")
 
-def boto_ocupacio_gates():
+def boto_assignar_tots():
     global bcn
-    if bcn == None:
-        label_result.config(text="Primer carrega LEBL",fg="red")
+    global aircrafts
+
+    if bcn is None:
+        label_result.config(text="Primer carrega LEBL", fg="red")
         return
 
-    ocupacio = lbl.GateOccupancy(bcn)
+    if len(aircrafts) == 0:
+        label_result.config(text="No hi ha vols carregats", fg="red")
+        return
 
-    for widget in frame_grafic.winfo_children():
-        widget.destroy()
+    assignats = 0
+    no_assignats = 0
 
-    tk.Label(frame_grafic,text="Ocupació Gates",font=("Arial",10,"bold")).pack()
-    container = tk.Frame(frame_grafic)
-    container.pack(fill="both", expand=True)
+    i = 0
+    while i < len(aircrafts):
 
-    # scroll bar
-    scroll_x = tk.Scrollbar(container, orient="horizontal")
-    scroll_x.pack(side="bottom", fill="x")
+        avio = aircrafts[i]
+        resultat = lbl.AssignGate(bcn, avio)
 
-    canvas = tk.Canvas(container, width=800, height=500, bg="white", xscrollcommand=scroll_x.set)
-    canvas.pack(side="left", fill="both", expand=True)
+        if resultat == -1:
+            no_assignats += 1
+        else:
+            assignats += 1
 
-    scroll_x.config(command=canvas.xview)
+        i += 1
 
-    lbl.DibuixarGraficSenzill(ocupacio, canvas)
-    canvas.update_idletasks()
-    canvas.config(scrollregion=canvas.bbox("all"))
+    label_result.config(text=f"Assignats: {assignats} | Sense gate: {no_assignats}",fg="green")
 
-    label_result.config(text="Ocupació mostrada",fg="green")
+def boto_assignacio_intelligent():
+    global bcn, aircrafts, canvas_terminal
 
+    if bcn is None:
+        label_result.config(text="Carrega LEBL primer", fg="red")
+        return
+
+    assignats, no_assignats = lbl.IntelligentAssign(bcn, aircrafts)
+
+    label_result.config(
+        text=f"Smart assignació → OK: {assignats} | Fail: {no_assignats}",
+        fg="green"
+    )
+    if canvas_terminal is not None:
+        canvas_terminal.delete("all")
+        lbl.DibuixarPlanoTerminal(bcn, canvas_terminal, gates_ui)
+
+        canvas_terminal.update_idletasks()
+        canvas_terminal.config(scrollregion=canvas_terminal.bbox("all"))
+
+#les que venen a continuació son per assignar manualment
+def detectar_click_gate(event):
+    x, y = event.x, event.y
+
+    for (x1, y1, x2, y2, gate, rect) in gates_ui:
+        if x1 <= x <= x2 and y1 <= y <= y2:
+
+            #clic dret = menú
+            if event.num == 3:
+                obrir_menu_gate(event, gate)
+            return
+
+def obrir_menu_gate(event, gate):
+    menu = tk.Menu(finestra, tearoff=0)
+
+    if gate.occupancy:
+        menu.add_command(
+            label="Desocupar gate",
+            command=lambda: desocupar_gate(gate)
+        )
+    else:
+        menu.add_command(
+            label="Assignar vol seleccionat",
+            command=lambda: AssignGate(gate)
+        )
+
+    menu.post(event.x_root, event.y_root)
+
+def desocupar_gate(gate):
+    gate.occupancy = False
+    gate.aircraft_id = ""
+    gate.aircraft=None
+
+    label_result.config(text=f"Gate {gate.name} buidada", fg="orange")
+
+    refrescar_canvas()
+
+def AssignGate(gate):
+    global aircrafts
+    idx = llista_aircrafts.curselection()
+
+    if not idx:
+        label_result.config(text="Selecciona un vol primer", fg="red")
+        return
+
+    avio = aircrafts[idx[0]]
+
+    # validació Schengen si existeix
+    if hasattr(gate, "type"):
+        if gate.type == "Schengen" and not getattr(avio, "Schengen", True):
+            label_result.config(text="No compatible Schengen", fg="red")
+            return
+        if gate.type == "non-Schengen" and getattr(avio, "Schengen", True):
+            label_result.config(text="No compatible Schengen", fg="red")
+            return
+
+    gate.occupancy = True
+    gate.aircraft_id = avio.id
+    gate.aircraft = avio
+
+    label_result.config(text=f"{avio.id} → {gate.name}",fg="green")
+
+    refrescar_canvas()
+
+def refrescar_canvas():
+    global canvas_terminal
+
+    if canvas_terminal is None:
+        return
+
+    canvas_terminal.delete("all")
+    gates_ui.clear()
+    lbl.DibuixarPlanoTerminal(bcn, canvas_terminal, gates_ui)
+    canvas_terminal.config(scrollregion=canvas_terminal.bbox("all"))
+
+#per canviar gate de color si passem el cursor per sobre
+def detectar_hover_gate(event):
+    global hovered_gate
+
+    x = canvas_terminal.canvasx(event.x)
+    y = canvas_terminal.canvasy(event.y)
+    found = None
+
+    for (x1, y1, x2, y2, gate, rect_id) in gates_ui:
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            found = (gate, rect_id)
+            break
+
+    # si canviem de gate
+    if found != hovered_gate:
+
+        # restaurar anterior
+        if hovered_gate:
+            gate_old, rect_old = hovered_gate
+            color = "#e74c3c" if gate_old.occupancy else "#2ecc71"
+            canvas_terminal.itemconfig(rect_old, fill=color)
+
+        hovered_gate = found
+
+        if found:
+            gate, rect_id = found
+
+            # highlight
+            canvas_terminal.itemconfig(rect_id, fill="#f1c40f")
+
+            # tooltip text
+            if gate.occupancy and gate.aircraft:
+                avio = gate.aircraft
+
+                text = (
+                    f"Gate: {gate.name}\n"
+                    f"Status: Ocupada\n\n"
+                    f"Flight ID: {avio.id}\n"
+                    f"Companyia: {avio.company}\n"
+                    f"Origen: {avio.airport}\n"
+                    f"Hora: {avio.time}"
+                )
+
+            else:
+
+                text = (
+                    f"Gate: {gate.name}\n"
+                    f"Status: Lliure"
+                )
+
+            tooltip.show(text, event.x_root + 10, event.y_root + 10)
+        else:
+            tooltip.hide()
 
 finestra = tk.Tk()
 finestra.title("Interfaç")
 finestra.geometry("1200x800")
+
+tooltip = Tooltip(finestra)
+hovered_gate=None
 
 frame_principal = tk.Frame(finestra)
 frame_principal.pack(side="top",fill="both", padx=20,pady=20)
@@ -362,7 +537,6 @@ contenedor_centrat.pack(anchor="center")
 left_container = tk.Frame(frame_esquerra)
 left_container.pack(fill="both", expand=True)
 
-#
 
 #PART AIRPORT
 
@@ -419,12 +593,12 @@ bloc4.pack(fill="x", padx=10, pady=5)
 tk.Button(bloc4,text="Carregar estructura LEBL",width=25,command=boto_carregar_lebl).grid(row=1,column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc4,text="Assignar gate al vol seleccionat",width=25,command=boto_assignar_gate).grid(row=1,column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc4,text="Mostrar terminals i gates",width=25,command=boto_mostrar_gates).grid(row=2,column=0,padx=3,pady=3,sticky="ew")
-tk.Button(bloc4,text="Mostrar ocupació gates",width=25,command=boto_ocupacio_gates).grid(row=2,column=1,padx=3,pady=3,sticky="ew")
+tk.Button(bloc4,text="Assignar tots els vols",width=25,command=boto_assignacio_intelligent).grid(row=2,column=1,padx=3,pady=3,sticky="ew")
 
 
-frame_grafic = tk.Frame(frame_principal, bg="white", width=550)
+frame_grafic = tk.Frame(frame_principal, bg="#ecf0f1", width=550)
 frame_grafic.pack(side="left", fill="both", expand=True, padx=15)
-tk.Label(frame_grafic,text="Dashboard Visual",font=("Arial", 12, "bold"),bg="white").pack()
+tk.Label(frame_grafic,text="Dashboard Visual",font=("Arial", 12, "bold"),bg="#ecf0f1").pack()
 
 
 
