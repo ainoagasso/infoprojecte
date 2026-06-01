@@ -6,6 +6,7 @@ import aircraft as ar
 import LEBL as lbl
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 canvas_terminals=[]
 gates_ui = []
 selected_gate = None
@@ -16,6 +17,11 @@ departures=[]
 simulation_running = False
 simulation_paused=False
 current_time = 0
+aircrafts_original = []
+departures_original = []
+movements_original = []
+
+
 
 #pestanya petita al posicionar-se sobre una gate
 class Tooltip:
@@ -98,6 +104,7 @@ def actualitzar_pantalla3():
         i += 1
 
 
+
 def boto_carregar():
     global list_airports
     ruta = filedialog.askopenfilename()
@@ -111,10 +118,11 @@ def boto_carregar():
         actualitzar_status("Please enter a filename to load", "red")
 
 def boto_carregar_arrivals():
-    global aircrafts
+    global aircrafts, aircrafts_original
     ruta = filedialog.askopenfilename()
     if ruta:
         aircrafts = ar.LoadArrivals(ruta)
+        aircrafts_original = aircrafts.copy()
         actualitzar_pantalla2()
         actualitzar_status("Flights loaded: " + str(len(aircrafts)), "green")
     else:
@@ -135,10 +143,11 @@ def boto_carregar_lebl():
         actualitzar_status("Error: " + str(e), "red")
 
 def boto_carregar_departures():
-    global departures
+    global departures, departures_original
     ruta = filedialog.askopenfilename()
     if ruta:
         departures = ar.LoadDepartures(ruta)
+        departures_original = departures.copy()
         actualitzar_pantalla3()
         actualitzar_status(
             f"Departures loaded: {len(departures)}",
@@ -331,12 +340,7 @@ def boto_assignar_gate(): #jo la treuria
         actualitzar_status("No hi ha gates disponibles", "red")
     else:
         actualitzar_status("Gate assignada a " + avio.id, "green")
-        ocupacio=lbl.GateOccupancy(bcn)
-        for widget in visual_panel.winfo_children():
-            widget.destroy()
-
-        canvas = tk.Canvas(frame_grafic3, width=800, height=500, bg="white")
-        canvas.pack(fill="both", expand=True)
+        refrescar_canvas()
 
 
 def boto_mostrar_gates():
@@ -499,16 +503,23 @@ def AssignGateManual(gate):
     refrescar_canvas()
 
 def refrescar_canvas():
-    global canvas_terminals
+    global canvas_terminals, gates_ui
 
     gates_ui.clear()
 
-    for canvas in canvas_terminals:
-        gates_ui.clear()
-        canvas.delete("all")
+    i = 0
+    while i < len(canvas_terminals):
+        canvas = canvas_terminals[i]
 
-        lbl.DibuixarPlanoTerminal(bcn,canvas,gates_ui)
-        canvas.config(scrollregion=canvas.bbox("all"))
+        try:
+            gates_ui.clear()
+            canvas.delete("all")
+            lbl.DibuixarPlanoTerminal(bcn, canvas, gates_ui)
+            canvas.config(scrollregion=canvas.bbox("all"))
+            i += 1
+
+        except tk.TclError:
+            canvas_terminals.pop(i)
 
 
 #per canviar gate de color si passem el cursor per sobre
@@ -576,6 +587,7 @@ def boto_plot_ocupacio():
         return
 
     figura = lbl.PlotDayOccupancy(bcn, aircrafts)
+    figura.subplots_adjust(left=0.10)
 
     incrustar_grafic(figura)
 
@@ -654,6 +666,7 @@ def boto_play_simulation():
     simulate_step()
 
 def boto_pause_resume():
+
     global simulation_paused
 
     if not simulation_running:
@@ -700,65 +713,215 @@ def simulate_step():
     # 6. repetir automàticament
     finestra.after(400, simulate_step)
 
+def boto_reset_simulacio():
+    global aircrafts, departures, bcn
+    global simulation_running, simulation_paused, current_time
+
+
+    # parar simulació
+    simulation_running = False
+    simulation_paused = False
+    current_time = 0
+
+    # restaurar dades originals
+    aircrafts = aircrafts_original.copy()
+    departures = departures_original.copy()
+
+    # reset aeroport (gates etc.)
+    if bcn is not None:
+        lbl.ResetGates(bcn)
+
+    # UI: refrescar llistes
+    actualitzar_pantalla2()
+    actualitzar_pantalla3()
+
+    # refrescar visual
+    refrescar_canvas()
+
+    actualitzar_status("Simulació reiniciada al principi del dia", "blue")
+
 def format_massa(kg):
    # Mostrem tones si el nombre és gran; si no, kg
    if kg >= 1000:
        return f"{kg/1000:.2f} t".replace(".", ",")
    return f"{kg:.0f} kg"
 
-
-
-
 def mostrar_emissions(event):
-    seleccio = llista_aircrafts.curselection() or llista_aircrafts2.curselection() or llista_aircrafts3.curselection()
+    widget = event.widget
+    seleccio = widget.curselection()
+
     if not seleccio:
         return
 
+    idx = seleccio[0]
+
+    # identificar panel correcto
+    if widget == llista_aircrafts:
+        label = label_emissions
+        punt = punt_emissions
+    elif widget == llista_aircrafts2:
+        label = label_emissions
+        punt = punt_emissions
+    else:
+        label = label_emissions
+        punt = punt_emissions
 
     if len(list_airports) == 0:
-        label_emissions.config(
-            text="Carrega primer la llista d'aeroports per calcular l'impacte.",fg="#b9770e")
-        punt_emissions.config(bg="#f4f6f7")
+        label.config(
+            text="Carrega primer la llista d'aeroports per calcular l'impacte.",
+            fg="#b9770e"
+        )
+        punt.config(bg="#f4f6f7")
         return
 
+    # CLAVE: obtener texto del Listbox (NO usar aircrafts[idx])
+    text = widget.get(idx)
 
-    avio = aircrafts[seleccio[0]]
+    # ID del vuelo (primer trozo del string)
+    flight_id = text.split(" - ")[0]
+
+    # buscar avión real
+    avio = None
+    for a in aircrafts:
+        if a.id == flight_id:
+            avio = a
+            break
+
+    if avio is None:
+        label.config(text="Vol no trobat en la base de dades", fg="red")
+        return
+
     dades = ar.FlightEmissions(avio, list_airports)
 
-
     if dades is None:
-        label_emissions.config(
+        label.config(
             text="Origen " + avio.airport + " no trobat a la llista d'aeroports.",
-            fg="#b9770e")
-        punt_emissions.config(bg="#f4f6f7")
+            fg="#b9770e"
+        )
+        punt.config(bg="#f4f6f7")
         return
-
 
     dist = dades["distancia"]
     fuel = dades["combustible"]
     co2 = dades["co2"]
 
-
     km_cotxe = co2 / 0.12
     arbres = co2 / 21.0
-   # Semàfor segons el CO2 total del vol
+
     if co2 < 15000:
-        color = "#27ae60"   # verd  (vol curt)
+        color = "#27ae60"
     elif co2 < 35000:
-        color = "#e67e22"   # ambre (vol mitjà)
+        color = "#e67e22"
     else:
-        color = "#c0392b"   # vermell (vol llarg / molt contaminant)
-    punt_emissions.config(bg=color)
+        color = "#c0392b"
 
+    punt.config(bg=color)
 
-    text = (
-        "Vol " + avio.id + "  (" + avio.airport + " -> LEBL)\n"
-        + "Distància:    " + f"{dist:,.0f} km".replace(",", ".") + "\n"
-        + "Combustible:  " + format_massa(fuel) + "\n"
-        + "CO2 emès:     " + format_massa(co2) + "\n"
-        + "≈ " + f"{km_cotxe:,.0f}".replace(",", ".") + " km amb cotxe  ·  "
-        + f"{arbres:,.0f}".replace(",", ".") + " arbres/any")
-    label_emissions.config(text=text, fg="#1a5276")
+    text_out = (
+            "Vol " + avio.id + "  (" + avio.airport + " -> LEBL)\n"
+            + "Distància:    " + f"{dist:,.0f} km".replace(",", ".") + "\n"
+            + "Combustible:  " + format_massa(fuel) + "\n"
+            + "CO2 emès:     " + format_massa(co2) + "\n"
+            + "≈ " + f"{km_cotxe:,.0f}".replace(",", ".") + " km amb cotxe  ·  "
+            + f"{arbres:,.0f}".replace(",", ".") + " arbres/any"
+    )
+
+    label.config(text=text_out, fg="#1a5276")
+
+def boto_gestionar_retard():
+    global aircrafts, bcn
+
+    if not aircrafts:
+        actualitzar_status("No hi ha vols carregats", "red")
+        return
+
+    index = None
+    source = None
+
+    if llista_aircrafts.curselection():
+        index = llista_aircrafts.curselection()
+        source = "aircrafts"
+
+    elif llista_aircrafts2.curselection():
+        index = llista_aircrafts2.curselection()
+        source = "aircrafts"
+
+    elif llista_aircrafts3.curselection():
+        index = llista_aircrafts3.curselection()
+        source = "aircrafts"
+
+    elif llista_departures.curselection():
+        index = llista_departures.curselection()
+        source = "departures"
+
+    elif llista_departures2.curselection():
+        index = llista_departures2.curselection()
+        source = "departures"
+
+    elif llista_departures3.curselection():
+        index = llista_departures3.curselection()
+        source = "departures"
+    if not index:
+        actualitzar_status("Selecciona un vol primer", "red")
+        return
+
+    posicio = index[0]
+
+    if source == "departures":
+        avio = departures[posicio]
+    else:
+        avio = aircrafts[posicio]
+
+    f_retard = tk.Toplevel(finestra)
+    f_retard.title(f"Gestionar retard — {avio.id}")
+    f_retard.geometry("300x220")
+    f_retard.resizable(False, False)
+
+    tk.Label(f_retard, text=f"Vol: {avio.id}  |  Aerolínia: {avio.company}",
+             font=("Arial", 10, "bold")).pack(pady=8)
+    tk.Label(f_retard, text=f"Arribada: {avio.time}  |  Sortida: {avio.departure_time if avio.departure_time else '—'}").pack()
+
+    tk.Label(f_retard, text="Minuts de retard:").pack(pady=6)
+    e_minuts = tk.Entry(f_retard, width=10, justify="center")
+    e_minuts.insert(0, "0")
+    e_minuts.pack()
+
+    tipus_var = tk.StringVar(value="arrival")
+    tk.Radiobutton(f_retard, text="Retard d'arribada",
+                   variable=tipus_var, value="arrival").pack()
+    tk.Radiobutton(f_retard, text="Retard de sortida",
+                   variable=tipus_var, value="departure").pack()
+
+    def aplicar_retard():
+        try:
+            minuts = int(e_minuts.get())
+            if minuts <= 0:
+                actualitzar_status("El retard ha de ser un número positiu", "red")
+                f_retard.destroy()
+                return
+        except ValueError:
+            actualitzar_status("Introdueix un número vàlid de minuts", "red")
+            f_retard.destroy()
+            return
+
+        res = lbl.AddDelay(avio, minuts, tipus_var.get())
+
+        if res == -1:
+            actualitzar_status("Error: comprova que el vol té hora de " +
+                                ("arribada" if tipus_var.get() == "arrival" else "sortida"),
+                                "red")
+        else:
+            tipus_text = "arribada" if tipus_var.get() == "arrival" else "sortida"
+            actualitzar_status(
+                "Retard de +" + str(minuts) + " min aplicat a " + str(avio.id) + " (" + tipus_text + ")",
+                "orange"
+            )
+            actualitzar_pantalla2()
+
+            f_retard.destroy()
+
+    tk.Button(f_retard, text="Aplicar retard", command=aplicar_retard,
+              bg="#e67e22", fg="white", width=20).pack(pady=12)
 
 
 finestra = tk.Tk()
@@ -915,7 +1078,7 @@ left_container2.pack(fill="both", expand=True)
 
 frame_airports2 = tk.LabelFrame(left_container2, text="Airports")
 frame_airports2.pack(fill="both", expand=False, pady=5)
-frame_aircrafts2 = tk.LabelFrame(left_container2, text="Flights")
+frame_aircrafts2 = tk.LabelFrame(left_container2, text="Arrivals")
 frame_aircrafts2.pack(fill="both", expand=False, pady=5)
 frame_departures2 = tk.LabelFrame(left_container2, text="Departures")
 frame_departures2.pack(fill="both", expand=False, pady=5)
@@ -944,38 +1107,38 @@ left_container3.pack(fill="both", expand=True)
 
 frame_airports3 = tk.LabelFrame(left_container3, text="Airports")
 frame_airports3.pack(fill="both", expand=False, pady=5)
-frame_aircrafts3 = tk.LabelFrame(left_container3, text="Flights")
+frame_aircrafts3 = tk.LabelFrame(left_container3, text="Arrivals")
 frame_aircrafts3.pack(fill="both", expand=False, pady=5)
 frame_departures3 = tk.LabelFrame(left_container3, text="Departures")
 frame_departures3.pack(fill="both", expand=False, pady=5)
 
 
 #Part comú
-llista_airports = tk.Listbox(frame_airports, width=40, height=10,bg="white", selectbackground="#3498db",font=("Consolas", 10))
+llista_airports = tk.Listbox(frame_airports, width=40, height=9,bg="white", selectbackground="#3498db",font=("Consolas", 10))
 llista_airports.pack(fill="both", expand=False)
-llista_aircrafts = tk.Listbox(frame_aircrafts, width=40, height=10,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
+llista_aircrafts = tk.Listbox(frame_aircrafts, width=40, height=9,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
 llista_aircrafts.pack(fill="both", expand=False)
-llista_departures = tk.Listbox(frame_departures,width=40,height=10,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
+llista_departures = tk.Listbox(frame_departures,width=40,height=9,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
 llista_departures.pack(fill="both", expand=False)
 
-llista_airports2 = tk.Listbox(frame_airports2, width=40, height=10,bg="white", selectbackground="#3498db",font=("Consolas", 10))
+llista_airports2 = tk.Listbox(frame_airports2, width=40, height=9,bg="white", selectbackground="#3498db",font=("Consolas", 10))
 llista_airports2.pack(fill="both", expand=False)
-llista_aircrafts2 = tk.Listbox(frame_aircrafts2, width=40, height=10,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
+llista_aircrafts2 = tk.Listbox(frame_aircrafts2, width=40, height=9,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
 llista_aircrafts2.pack(fill="both", expand=False)
-llista_departures2 = tk.Listbox(frame_departures2,width=40,height=10,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
+llista_departures2 = tk.Listbox(frame_departures2,width=40,height=9,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
 llista_departures2.pack(fill="both", expand=False)
 
 
-llista_airports3 = tk.Listbox(frame_airports3, width=40, height=10,bg="white", selectbackground="#3498db",font=("Consolas", 10))
+llista_airports3 = tk.Listbox(frame_airports3, width=40, height=9,bg="white", selectbackground="#3498db",font=("Consolas", 10))
 llista_airports3.pack(fill="both", expand=False)
-llista_aircrafts3 = tk.Listbox(frame_aircrafts3, width=40, height=10,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
+llista_aircrafts3 = tk.Listbox(frame_aircrafts3, width=40, height=9,bg="white", selectbackground="#e74c3c",font=("Consolas", 10))
 llista_aircrafts3.pack(fill="both", expand=False)
-llista_departures3 = tk.Listbox(frame_departures3,width=40,height=10,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
+llista_departures3 = tk.Listbox(frame_departures3,width=40,height=9,bg="white",selectbackground="#9b59b6",font=("Consolas", 10))
 llista_departures3.pack(fill="both", expand=False)
 
 
 #CO2
-frame_emissions = tk.LabelFrame(left_container, text="Petjada ecològica del vol",fg="#1e8449", font=("Arial", 9, "bold"))
+frame_emissions = tk.LabelFrame(left_container, text="Petjada ecològica del vol",font=("Arial", 9, "bold"))
 frame_emissions.pack(fill="x", expand=False, pady=5)
 
 fila_emis = tk.Frame(frame_emissions)
@@ -991,28 +1154,9 @@ label_emissions.pack(side="left", fill="x")
 frame_emissions2 = tk.LabelFrame(left_container2, text="Petjada ecològica del vol",fg="#1e8449", font=("Arial", 9, "bold"))
 frame_emissions2.pack(fill="x", expand=False, pady=5)
 
-fila_emis2 = tk.Frame(frame_emissions2)
-fila_emis2.pack(fill="x", padx=5, pady=3)
 
-# Petit indicador de color (semàfor d'emissions)
-punt_emissions2 = tk.Label(fila_emis2, text="  ", bg="#f4f6f7", width=2)
-punt_emissions2.pack(side="left", padx=(0, 8))
 
-label_emissions2 = tk.Label(fila_emis2,text="Selecciona un vol per veure'n el combustible i el CO2.",justify="left", anchor="w", font=("Consolas", 9))
-label_emissions2.pack(side="left", fill="x")
 
-frame_emissions3 = tk.LabelFrame(left_container3, text="Petjada ecològica del vol",fg="#1e8449", font=("Arial", 9, "bold"))
-frame_emissions3.pack(fill="x", expand=False, pady=5)
-
-fila_emis3 = tk.Frame(frame_emissions3)
-fila_emis3.pack(fill="x", padx=5, pady=3)
-
-# Petit indicador de color (semàfor d'emissions)
-punt_emissions3 = tk.Label(fila_emis3, text="  ", bg="#f4f6f7", width=2)
-punt_emissions3.pack(side="left", padx=(0, 8))
-
-label_emissions3 = tk.Label(fila_emis3,text="Selecciona un vol per veure'n el combustible i el CO2.",justify="left", anchor="w", font=("Consolas", 9))
-label_emissions3.pack(side="left", fill="x")
 
 # Quan se selecciona un vol a la llista, mostrem la seva petjada
 llista_aircrafts.bind("<<ListboxSelect>>", mostrar_emissions)
@@ -1061,7 +1205,7 @@ tk.Button(bloc2,text="Trajectòries a Barcelona",width=25,command=boto_mapa2).gr
 tk.Button(bloc2,text="Freqüència d'aterratge/dia",width=25,command=PlotArrivalsButton).grid(row=0, column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Nombre de vols per aerolínea", width=25,command=PlotAirlinesButton).grid(row=1, column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Arrivant des de Schengen o no",width=25,command=PlotFlightsTypeButton).grid(row=2, column=1,padx=3,pady=3,sticky="ew")
-
+tk.Button(bloc2, text="Gestionar retard vol",width=25, command=boto_gestionar_retard).grid(row=3, column=0, columnspan=2,padx=3, pady=3, sticky="ew")
 
 bloc3 = tk.LabelFrame(contenedor_centrat2, text="System")
 bloc3.pack(fill="x", padx=10, pady=5)
@@ -1102,7 +1246,7 @@ entry_hora.grid(row=2,column=1,padx=3,pady=3)
 tk.Button(bloc5,text="Mostrar estat a aquesta hora",command=boto_mostrar_hora).grid(row=3,column=0,columnspan=2,padx=3,pady=3,sticky="ew")
 
 
-
+#on estan els gràfic i simulador
 frame_grafic3 = tk.Frame(tab_lebl, bg="#ecf0f1", width=550)
 frame_grafic3.pack(side="left", fill="both", expand=True, padx=15)
 tk.Label(frame_grafic3,text="Dashboard Visual",font=("Arial", 12, "bold"),bg="#ecf0f1").pack()
@@ -1113,7 +1257,7 @@ visual_panel=tk.Frame(frame_grafic3, bg="#ecf0f1")
 visual_panel.pack(fill="both", expand=True)
 tk.Button(control_panel,text="Play Day Simulation",command=boto_play_simulation).grid(row=0,column=0,padx=3,pady=3,sticky="ew")
 tk.Button(control_panel,text="Pause / Resume",command=boto_pause_resume).grid(row=0,column=1,padx=3,pady=3,sticky="ew")
-
+tk.Button(control_panel,text="Reset Simulation",command=boto_reset_simulacio).grid(row=0,column=2,padx=3,pady=3,sticky="ew")
 
 # Apliquem el tema visual a tota la finestra (nomes aparenca, res funcional)
 _aplicar_tema(finestra)

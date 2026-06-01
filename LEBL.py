@@ -380,43 +380,46 @@ def DibuixarPlanoTerminal(bcn, canvas_tk, gates_ui):
     canvas_tk.update_idletasks()
     canvas_tk.config(scrollregion=canvas_tk.bbox("all"))
 
-def AssignNightGates(bcn,aircrafts):
+def AssignNightGates(bcn, aircrafts):
     if len(aircrafts) == 0:
         return -1
 
-    night= NightAircraft(aircrafts)
+    night = NightAircraft(aircrafts)
     if night == -1:
         return -1
 
-    i=0
+    i = 0
     while i < len(night):
-        ac=night[i]
-        sleep=Aircraft(ac.id, ac.company, "LEBL", "", ac.destination, ac.departure_time)
-        AssignGate(bcn,sleep)
+        ac = night[i]
+        if ac.airport != "":
+            i += 1
+            continue
+
+        if ac.time != "":
+            i += 1
+            continue
+
+        sleep = Aircraft(ac.id, ac.company, "LEBL", "", ac.destination, ac.departure_time)
+        AssignGate(bcn, sleep)
         i += 1
     return 0
 
-def FreeGate(bcn,id):
-    i=0
-    encontrado=False
-    while i<len(bcn.terminals):
-        j=0
-        while j<len(bcn.terminals[i].boarding_areas):
-            k=0
-            while k<len(bcn.terminals[i].boarding_areas[j].gates) and not encontrado:
-                if bcn.terminals[i].boarding_areas[j].gates[k].aircraft_id==id:
-                    bcn.terminals[i].boarding_areas[j].gates[k].occupancy=False
-                    bcn.terminals[i].boarding_areas[j].gates[k].aircraft_id=""
-                    bcn.terminals[i].boarding_areas[j].gates[k].aircraft=None
-                    encontrado=True
-                k=k+1
-            j=j+1
-        i=i+1
-    if encontrado:
-        return 0
-    else:
-        print("L'avió no s'ha trobat")
-        return -1
+def FreeGate(bcn, id):
+    id = str(id).strip()  # elimina espais invisibles
+
+
+    for terminal in bcn.terminals:
+        for ba in terminal.boarding_areas:
+            for gate in ba.gates:
+
+                if gate.aircraft and gate.aircraft_id.strip() == id:
+                    gate.occupancy = False
+                    gate.aircraft_id = ""
+                    gate.aircraft = None
+                    return 0   # surt al trobar-lo
+
+
+    return -1
 
 
 def AssignGatesAtTime(bcn,aircrafts,time):

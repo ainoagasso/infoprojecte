@@ -1,13 +1,15 @@
 from airport import *
 
 class Aircraft:
-    def __init__(self, id="", company="", airport="", time="",destination="",departure_time=""):
+    def __init__(self, id="", company="", airport="", time="",destination="",departure_time="",delay_minutes="",delay=""):
         self.id = id
         self.company = company
         self.airport = airport
         self.time = time
         self.destination=destination
         self.departure_time=departure_time
+        self.delay_minutes=delay_minutes
+        self_delay=delay
 
 
 def LoadArrivals (Filename):
@@ -459,6 +461,58 @@ def FlightEmissions(aircraft, airports):
 
     return {"distancia": distancia, "combustible": combustible, "co2": co2}
 
+def AddDelay(aircraft, delay_minutes, delay_type):
+    # Funció per afegir minuts de retras al arrival o departure #
+    if aircraft is None:
+        return -1
+    if delay_minutes <= 0:
+        return -1
+
+    if delay_type == "arrival":
+        if aircraft.time == "":
+            return -1
+        parts = aircraft.time.split(':')
+    elif delay_type == "departure":
+        if aircraft.departure_time == "":
+            return -1
+        parts = aircraft.departure_time.split(':')
+    else:
+        return -1
+
+    if len(parts) != 2:
+        return -1
+
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+    except ValueError:
+        return -1
+
+    total_minutes = hours * 60 + minutes + delay_minutes
+
+    if total_minutes >= 24 * 60:
+        total_minutes = total_minutes % (24 * 60)
+    # Aquest if serveix per retards que passin la mitja nit. Ex: 23:50 + :30, mostrarà 00:20 per comptes de 24:20 #
+    new_hours = total_minutes // 60
+    new_minutes = total_minutes % 60
+
+    if new_minutes < 10:
+        new_time = str(new_hours) + ":0" + str(new_minutes)
+    else:
+        new_time = str(new_hours) + ":" + str(new_minutes)
+
+    if delay_type == "arrival":
+        aircraft.time = new_time
+    else:
+        aircraft.departure_time = new_time
+    try:
+        aircraft.delay_minutes = int(aircraft.delay_minutes or 0) + delay_minutes
+    except ValueError:
+        aircraft.delay_minutes = delay_minutes
+        # Això en serveix per afegir retards succesius, no només un de sol #
+    aircraft.delay = True
+
+    return 0
 
 # test section
 if __name__ == "__main__":
