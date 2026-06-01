@@ -765,6 +765,87 @@ finestra = tk.Tk()
 finestra.title("Sistema de l'aeroport")
 finestra.state("zoomed")
 
+
+# =====================================================================
+#  TEMA VISUAL  (nomes estetica - NO canvia cap funcionalitat)
+#  Paleta "blau aviacio + blanc". Tota la logica queda exactament igual.
+# =====================================================================
+C_CHROME = "#e9eff5"         # fons de tots els panells
+C_PRIMARY = "#1f6aa5"        # blau dels botons
+C_PRIMARY_HOVER = "#2980b9"  # blau en passar el ratoli per sobre
+C_PRIMARY_DARK = "#15466b"   # blau fosc (titols)
+C_HEAD = "#15466b"           # titols dels LabelFrame
+C_BORDER = "#c2d2e3"
+FONT_HEAD = ("Segoe UI", 10, "bold")
+FONT_BTN = ("Segoe UI", 9, "bold")
+
+finestra.configure(bg=C_CHROME)
+
+# Valors per defecte: tambe afecten finestres creades despres (ex: "Nou Aeroport")
+finestra.option_add("*Button.background", C_PRIMARY)
+finestra.option_add("*Button.foreground", "white")
+finestra.option_add("*Button.activeBackground", C_PRIMARY_HOVER)
+finestra.option_add("*Button.activeForeground", "white")
+finestra.option_add("*Button.relief", "flat")
+finestra.option_add("*Button.borderWidth", 0)
+finestra.option_add("*Button.font", "{Segoe UI} 9 bold")
+finestra.option_add("*Button.cursor", "hand2")
+finestra.option_add("*Entry.relief", "flat")
+finestra.option_add("*Entry.background", "white")
+finestra.option_add("*Toplevel.background", C_CHROME)
+
+# Estil de les pestanyes (ttk Notebook)
+_style_tema = ttk.Style()
+try:
+    _style_tema.theme_use("clam")
+except Exception:
+    pass
+_style_tema.configure("TNotebook", background=C_CHROME, borderwidth=0)
+_style_tema.configure("TNotebook.Tab", background="#d6e2ef",
+                      foreground=C_PRIMARY_DARK, padding=(26, 10),
+                      font=("Segoe UI", 11, "bold"), borderwidth=0)
+_style_tema.map("TNotebook.Tab",
+                background=[("selected", C_PRIMARY)],
+                foreground=[("selected", "white")])
+
+
+def _aplicar_tema(w):
+    # Recorre tots els ginys i NOMES en canvia l'aparenca (mai el comportament)
+    cls = w.winfo_class()
+    try:
+        if cls == "Button":
+            w.configure(bg=C_PRIMARY, fg="white", activebackground=C_PRIMARY_HOVER,
+                        activeforeground="white", relief="flat", bd=0,
+                        font=FONT_BTN, cursor="hand2", highlightthickness=0)
+            w.bind("<Enter>", lambda e: e.widget.configure(bg=C_PRIMARY_HOVER))
+            w.bind("<Leave>", lambda e: e.widget.configure(bg=C_PRIMARY))
+        elif cls == "Labelframe":
+            cur_fg = str(w.cget("foreground"))
+            if cur_fg in ("", "black", "#000000", "SystemButtonText", "SystemWindowText"):
+                w.configure(fg=C_HEAD)
+            w.configure(bg=C_CHROME, font=FONT_HEAD)
+        elif cls == "Frame":
+            if str(w.cget("bg")) == "#ecf0f1":   # els dashboards -> blancs
+                w.configure(bg="white")
+            else:
+                w.configure(bg=C_CHROME)
+        elif cls == "Label":
+            if str(w.cget("bg")) == "#ecf0f1":
+                w.configure(bg="white")
+            else:
+                w.configure(bg=C_CHROME)
+        elif cls == "Listbox":
+            w.configure(bg="white", relief="flat", bd=0, highlightthickness=1,
+                        highlightbackground=C_BORDER, highlightcolor=C_BORDER)
+        elif cls == "Entry":
+            w.configure(relief="flat", bg="white", highlightthickness=1,
+                        highlightbackground=C_BORDER)
+    except tk.TclError:
+        pass
+    for fill in w.winfo_children():
+        _aplicar_tema(fill)
+# (la crida a _aplicar_tema es fa al final, just abans de mainloop)
+
 tooltip = Tooltip(finestra)
 hovered_gate=None
 
@@ -1032,6 +1113,10 @@ visual_panel=tk.Frame(frame_grafic3, bg="#ecf0f1")
 visual_panel.pack(fill="both", expand=True)
 tk.Button(control_panel,text="Play Day Simulation",command=boto_play_simulation).grid(row=0,column=0,padx=3,pady=3,sticky="ew")
 tk.Button(control_panel,text="Pause / Resume",command=boto_pause_resume).grid(row=0,column=1,padx=3,pady=3,sticky="ew")
+
+
+# Apliquem el tema visual a tota la finestra (nomes aparenca, res funcional)
+_aplicar_tema(finestra)
 
 finestra.mainloop()
 
