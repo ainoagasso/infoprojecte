@@ -1,4 +1,5 @@
 from aircraft import *
+import copy
 
 class BarcelonaAP:
     def __init__(self, code=""):
@@ -390,11 +391,121 @@ def AssignNightGates(bcn,aircrafts):
     i=0
     while i < len(night):
         ac=night[i]
-        sleep=Aircraft(ac.id, ac.company, "LEBL", "", ac.detination, ac.departure_time)
+        sleep=Aircraft(ac.id, ac.company, "LEBL", "", ac.destination, ac.departure_time)
         AssignGate(bcn,sleep)
         i += 1
-
     return 0
+
+def FreeGate(bcn,id):
+    i=0
+    encontrado=False
+    while i<len(bcn.terminals):
+        j=0
+        while j<len(bcn.terminals[i].boarding_areas):
+            k=0
+            while k<len(bcn.terminals[i].boarding_areas[j].gates) and not encontrado:
+                if bcn.terminals[i].boarding_areas[j].gates[k].aircraft_id==id:
+                    bcn.terminals[i].boarding_areas[j].gates[k].occupancy=False
+                    bcn.terminals[i].boarding_areas[j].gates[k].aircraft_id=""
+                    bcn.terminals[i].boarding_areas[j].gates[k].aircraft=None
+                    encontrado=True
+                k=k+1
+            j=j+1
+        i=i+1
+    if encontrado:
+        return 0
+    else:
+        print("L'avió no s'ha trobat")
+        return -1
+
+
+def AssignGatesAtTime(bcn,aircrafts,time):
+    i=0
+    no_assignats=0
+    trozos = time.split(":")
+    time_min = int(trozos[0]) * 60 + int(trozos[1])
+    while i<len(aircrafts):
+        if aircrafts[i].departure_time!="":
+            parts=aircrafts[i].departure_time.split(":")
+            dtime=60*int(parts[0])+int(parts[1])
+            if dtime<time_min:
+                FreeGate(bcn,aircrafts[i].id)
+        if aircrafts[i].time!="":
+            partes = aircrafts[i].time.split(":")
+            ttime = int(partes[0]) * 60 + int(partes[1])
+            if ttime>=time_min and ttime<time_min+60:
+                res2=AssignGate(bcn,aircrafts[i])
+                if res2==-1:
+                    no_assignats=no_assignats+1
+        i=i+1
+    return no_assignats
+
+def PlotDayOccupancy(bcn, aircrafts):
+
+    import matplotlib.pyplot as plt
+    bcn_sim=copy.deepcopy(bcn)
+    hores = []
+    no_assignats = []
+
+    terminals = {}
+
+    for terminal in bcn.terminals:
+        terminals[terminal.name] = []
+
+    h = 0
+
+    while h < 24:
+
+        hora_text = f"{h:02d}:00"
+
+        fail = AssignGatesAtTime(bcn_sim, aircrafts, hora_text)
+
+        hores.append(h)
+        no_assignats.append(fail)
+
+        for terminal in bcn_sim.terminals:
+
+            ocupades = 0
+
+            for area in terminal.boarding_areas:
+                for gate in area.gates:
+                    if gate.occupancy:
+                        ocupades += 1
+
+            terminals[terminal.name].append(ocupades)
+
+        h += 1
+
+    fig, ax = plt.subplots(figsize=(12,6))
+
+    for nom_terminal in terminals:
+        ax.plot(
+            hores,
+            terminals[nom_terminal],
+            marker="o",
+            label=nom_terminal
+        )
+
+    ax.bar(
+        hores,
+        no_assignats,
+        alpha=0.4,
+        label="No assignats"
+    )
+
+    ax.set_title("Gate occupancy during the day")
+    ax.set_xlabel("Hour")
+    ax.set_ylabel("Aircraft / Gates")
+
+    ax.set_xticks(range(24))
+    ax.grid(True)
+
+    ax.legend()
+
+    fig.tight_layout()
+
+    return fig
+
 
 
 

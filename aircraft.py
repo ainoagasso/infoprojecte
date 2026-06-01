@@ -1,11 +1,13 @@
 from airport import *
 
 class Aircraft:
-    def __init__(self, id="", company="", airport="", time=""):
+    def __init__(self, id="", company="", airport="", time="",destination="",departure_time=""):
         self.id = id
         self.company = company
         self.airport = airport
         self.time = time
+        self.destination=destination
+        self.departure_time=departure_time
 
 
 def LoadArrivals (Filename):
@@ -332,6 +334,7 @@ def LoadDepartures(filename):
                 minuts = int(trozos[1])
             except ValueError:
                 linea = Fin.readline()
+                continue
 
             if hores < 0 or hores >= 24 or minuts < 0 or minuts >= 60:
                 linea = Fin.readline()
@@ -346,40 +349,63 @@ def LoadDepartures(filename):
     return Departures
 
 
-def MergeMovements(arrivals,departures):
+def MergeMovements(arrivals, departures):
     if len(arrivals) == 0 or len(departures) == 0:
         return []
-    i=0
-    planes=[]
-    DepUsats=[]
-    while i < len(arrivals):
-        k=0
-        posicio_correcta=-1
-        time=None
-        while k<len(departures):
-            if arrivals[i].id==departures[k].id and arrivals[i].company==departures[k].company:
-                h1, m1 = arrivals[i].time.split(":")
-                horaArrivada = int(h1) * 60 + int(m1)
-                h2, m2 = departures[k].timeDeparture.split(":")
-                horaDeparture = int(h2) * 60 + int(m2)
-                if horaArrivada<horaDeparture:
-                    if time==None or horaDeparture<time:
-                        time=horaDeparture
-                        posicio_correcta=k
-            k = k + 1
 
-        if posicio_correcta != -1:
-                    DepUsats.append(posicio_correcta)
-                    planes.append(Aircraft(arrivals[i].id, arrivals[i].company, arrivals[i].airport, arrivals[i].time,departures[posicio_correcta].destination, departures[posicio_correcta].timeDeparture))
+    planes = []
+    DepUsats = set()
+
+    def to_minutes(t):
+        if ":" not in t:
+            return None
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    i = 0
+    while i < len(arrivals):
+
+        best_k = -1
+        best_dep_time = None
+
+        arr_time = to_minutes(arrivals[i].time)
+
+        k = 0
+        while k < len(departures):
+
+            if arrivals[i].id == departures[k].id and arrivals[i].company == departures[k].company:
+
+                dep_time = to_minutes(departures[k].departure_time)
+
+                if arr_time is not None and dep_time is not None and arr_time < dep_time:
+
+                    if best_dep_time is None or dep_time < best_dep_time:
+                        best_dep_time = dep_time
+                        best_k = k
+
+            k += 1
+
+        if best_k != -1:
+            DepUsats.add(best_k)
+            planes.append(Aircraft(
+                arrivals[i].id,
+                arrivals[i].company,
+                arrivals[i].airport,
+                arrivals[i].time,
+                departures[best_k].destination,
+                departures[best_k].departure_time
+            ))
         else:
             planes.append(arrivals[i])
-        i=i+1
 
-    n=0
+        i += 1
+
+    n = 0
     while n < len(departures):
         if n not in DepUsats:
             planes.append(departures[n])
-        n = n + 1
+        n += 1
+
     return planes
 
 def NightAircraft(aircrafts):
@@ -395,6 +421,43 @@ def NightAircraft(aircrafts):
         i += 1
 
     return night_list
+
+CONSUM_FIX_KG = 800.0
+CONSUM_PER_KM = 2.8
+FACTOR_CO2 = 3.16
+
+
+def FlightEmissions(aircraft, airports):
+    lat_lebl = 41.297445
+    lon_lebl = 2.0832941
+    i = 0
+    while i < len(airports):
+        if airports[i].ICAO == "LEBL":
+            lat_lebl = airports[i].latitude
+            lon_lebl = airports[i].longitude
+        i = i + 1
+
+
+    lat_origen = None
+    lon_origen = None
+    j = 0
+    while j < len(airports):
+        if airports[j].ICAO == aircraft.airport:
+            lat_origen = airports[j].latitude
+            lon_origen = airports[j].longitude
+        j = j + 1
+
+
+    if lat_origen is None:
+        return None
+
+
+    distancia = HaversineDistance(lat_lebl, lon_lebl, lat_origen, lon_origen)
+    combustible = CONSUM_FIX_KG + CONSUM_PER_KM * distancia
+    co2 = combustible * FACTOR_CO2
+
+
+    return {"distancia": distancia, "combustible": combustible, "co2": co2}
 
 
 # test section
