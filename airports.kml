@@ -2198,19 +2198,6 @@
            </Point>
        </Placemark>
        <Placemark>
-           <name> UUDD </name>
-           <Style>
-               <IconStyle>
-                   <Icon>
-                       <href>http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href>
-                   </Icon>
-               </IconStyle>
-           </Style>
-           <Point>
-               <coordinates>37.906388888888884,55.40861111111111,0</coordinates>
-           </Point>
-       </Placemark>
-       <Placemark>
            <name> UUEE </name>
            <Style>
                <IconStyle>
@@ -2247,6 +2234,19 @@
            </Style>
            <Point>
                <coordinates>103.98916666666666,1.3591666666666669,0</coordinates>
+           </Point>
+       </Placemark>
+       <Placemark>
+           <name> LECC </name>
+           <Style>
+               <IconStyle>
+                   <Icon>
+                       <href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href>
+                   </Icon>
+               </IconStyle>
+           </Style>
+           <Point>
+               <coordinates>67.67,30.22,0</coordinates>
            </Point>
        </Placemark></Document>
 </kml>

@@ -6,7 +6,7 @@ import aircraft as ar
 import LEBL as lbl
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-
+#variables globals de l'aplicació
 canvas_terminals=[]
 gates_ui = []
 selected_gate = None
@@ -23,7 +23,7 @@ movements_original = []
 
 
 
-#pestanya petita al posicionar-se sobre una gate
+#pestanya petita emergent al posicionar-se sobre una gate que mostra la seva informació
 class Tooltip:
     def __init__(self, widget):
         self.widget = widget
@@ -43,7 +43,7 @@ class Tooltip:
             self.tipwindow.destroy()
             self.tipwindow = None
 
-
+#actualització de les llistes mostrades a la interfície
 def actualitzar_pantalla():
     llista = [llista_airports, llista_airports2, llista_airports3]
     i = 0
@@ -53,14 +53,13 @@ def actualitzar_pantalla():
         k = 0
         while k < len(list_airports):
             airport = list_airports[k]
-            estat = "Schengen" if airport.schengen else "non-Schengen"
+            estat = "Schengen" if airport.schengen else "non-Schengen" #mostrem tipus d'aeroport segons si es Schengen o no
             text = (f"{airport.ICAO} - "f"{airport.latitude:.4f} - "f"{airport.longitude:.4f} - "f"{estat}")
 
             llista[i].insert(tk.END, text)
             k = k + 1
 
         i = i + 1
-
 
 def actualitzar_pantalla2():
     llista = [llista_aircrafts, llista_aircrafts2, llista_aircrafts3]
@@ -103,8 +102,7 @@ def actualitzar_pantalla3():
             k=k+1
         i += 1
 
-
-
+#funcions de càrrega de dades
 def boto_carregar():
     global list_airports
     ruta = filedialog.askopenfilename()
@@ -122,12 +120,11 @@ def boto_carregar_arrivals():
     ruta = filedialog.askopenfilename()
     if ruta:
         aircrafts = ar.LoadArrivals(ruta)
-        aircrafts_original = aircrafts.copy()
+        aircrafts_original = aircrafts.copy() #guardem una còpia per poder reiniciar la simulació més tard
         actualitzar_pantalla2()
         actualitzar_status("Flights loaded: " + str(len(aircrafts)), "green")
     else:
         actualitzar_status("Please enter a filename to load", "red")
-
 
 def boto_carregar_lebl():
     global bcn
@@ -149,17 +146,11 @@ def boto_carregar_departures():
         departures = ar.LoadDepartures(ruta)
         departures_original = departures.copy()
         actualitzar_pantalla3()
-        actualitzar_status(
-            f"Departures loaded: {len(departures)}",
-            "green"
-        )
+        actualitzar_status(f"Departures loaded: {len(departures)}","green")
     else:
+        actualitzar_status("Error loading departures","red")
 
-        actualitzar_status(
-            "Error loading departures",
-            "red"
-        )
-
+#nova finestra per aefgir nou aeroport
 def boto_afegir():
     f_nova = tk.Toplevel(finestra)
     f_nova.title("Nou Aeroport")
@@ -200,6 +191,7 @@ def boto_afegir():
 
     tk.Button(f_nova, text="Guardar", command=guardar_nou).pack(pady=5)
 
+#funcions d'exportació de dades
 def boto_guardar_aeroports():
     global list_airports
     fitxer_desti = filedialog.asksaveasfilename(
@@ -215,14 +207,12 @@ def boto_guardar_aeroports():
         else:
             actualitzar_status("No s'ha pogut guardar el fitxer", "red")
 
-
 def boto_guardar_vols():
     global aircrafts
     fitxer_desti = filedialog.asksaveasfilename(
         defaultextension=".txt",
         filetypes=[("Fitxers de text", "*.txt"), ("Tots els fitxers", "*.*")],
-        title="Guardar llista de vols"
-    )
+        title="Guardar llista de vols")
 
     if fitxer_desti:
         resultat = ar.SaveFlights(aircrafts, fitxer_desti)
@@ -231,7 +221,6 @@ def boto_guardar_vols():
             actualitzar_status("Vols guardats amb èxit", "green")
         else:
             actualitzar_status("No s'ha pogut guardar el fitxer", "red")
-
 
 def boto_eliminar():
     # Mirem quin element ha marcat l'usuari amb el ratolí
@@ -253,6 +242,7 @@ def boto_schengen():
     actualitzar_pantalla()
     actualitzar_status("Schengen updated", "green")
 
+#visualització gràfica de dades (gràfiques i mapes)
 def boto_grafic():
     figura=ap.PlotAirports(list_airports)
     incrustar_grafic(figura)
@@ -301,24 +291,25 @@ def ShowLongDistanceButton():
     actualitzar_pantalla2()
     actualitzar_status("Long distance flights shown: " + str(len(aircrafts)), "green")
 
+#per poder veure els gràfics dins de la mateixa interfaç
 def incrustar_grafic(figura):
     frames = [frame_grafic, frame_grafic2, visual_panel]
     i = 0
     while i < len(frames):
         frame = frames[i]
-        # 1. Netegem el frame per si ja hi havia un gràfic abans
+        #Netegem el frame per si ja hi havia un gràfic abans
         for widget in frame.winfo_children():
             widget.destroy()
 
-        # 2. Creem el "Canvas" (el llenç) de Matplotlib per a Tkinter
+        #Creem el "Canvas" (el llenç) de Matplotlib per a Tkinter
         canvas = FigureCanvasTkAgg(figura, master=frame)
         canvas.draw()
 
-        # 3. Col·loquem el gràfic dins del frame
+        #Col·loquem el gràfic dins del frame
         canvas.get_tk_widget().pack(fill="both", expand=True)
         i = i + 1
 
-
+#gestió de gates i terminals
 def boto_assignar_gate(): #jo la treuria
     global bcn
     global aircrafts
@@ -341,7 +332,6 @@ def boto_assignar_gate(): #jo la treuria
     else:
         actualitzar_status("Gate assignada a " + avio.id, "green")
         refrescar_canvas()
-
 
 def boto_mostrar_gates():
     if bcn is None:
@@ -367,13 +357,7 @@ def boto_mostrar_gates():
         h_scroll = tk.Scrollbar(container, orient="horizontal")
         h_scroll.pack(side="bottom", fill="x")
 
-        canvas = tk.Canvas(
-            container,
-            bg="white",
-            xscrollcommand=h_scroll.set,
-            yscrollcommand=v_scroll.set
-        )
-
+        canvas = tk.Canvas(container,bg="white",xscrollcommand=h_scroll.set,yscrollcommand=v_scroll.set)
         canvas.pack(side="left", fill="both", expand=True)
 
         v_scroll.config(command=canvas.yview)
@@ -426,7 +410,7 @@ def boto_assignacio_intelligent():
     if bcn is None:
         actualitzar_status("Carrega LEBL primer", "red")
         return
-
+    #assignació optimitzada
     assignats, no_assignats = lbl.IntelligentAssign(bcn, aircrafts)
 
     actualitzar_status(
@@ -438,6 +422,7 @@ def boto_assignacio_intelligent():
 #les que venen a continuació son per assignar manualment
 def detectar_click_gate(event):
     canvas=event.widget
+    #convertir les coordenades visibles a coordenades rels del canvas
     x=canvas.canvasx(event.x)
     y=canvas.canvasy(event.y)
 
@@ -455,13 +440,11 @@ def obrir_menu_gate(event, gate):
     if gate.occupancy:
         menu.add_command(
             label="Desocupar gate",
-            command=lambda: desocupar_gate(gate)
-        )
+            command=lambda: desocupar_gate(gate))
     else:
         menu.add_command(
             label="Assignar vol seleccionat",
-            command=lambda: AssignGateManual(gate)
-        )
+            command=lambda: AssignGateManual(gate))
 
     menu.post(event.x_root, event.y_root)
 
@@ -522,7 +505,7 @@ def refrescar_canvas():
             canvas_terminals.pop(i)
 
 
-#per canviar gate de color si passem el cursor per sobre
+#interacció visual amb les gates, per canviar gate de color si passem el cursor per sobre
 def detectar_hover_gate(event):
     global hovered_gate
     canvas=event.widget
@@ -536,7 +519,7 @@ def detectar_hover_gate(event):
             found = (gate, rect_id)
             break
 
-    # si canviem de gate
+    # només actualitzem colors i tal si el cursor ha canviat de gate
     if found != hovered_gate:
 
         # restaurar anterior
@@ -570,13 +553,13 @@ def detectar_hover_gate(event):
 
                 text = (
                     f"Gate: {gate.name}\n"
-                    f"Status: Lliure"
-                )
+                    f"Status: Lliure")
 
             tooltip.show(text, event.x_root + 10, event.y_root + 10)
         else:
             tooltip.hide()
 
+#simulació i ocupació de terminals
 def boto_plot_ocupacio():
 
     global bcn
@@ -596,7 +579,6 @@ def boto_plot_ocupacio():
         "green")
 
 def boto_mostrar_hora():
-
     global bcn
     global aircrafts
 
@@ -604,51 +586,31 @@ def boto_mostrar_hora():
 
     lbl.ResetGates(bcn)
     lbl.AssignNightGates(bcn, aircrafts)
-
-    lbl.AssignGatesAtTime(
-        bcn,
-        aircrafts,
-        hora
-    )
+    lbl.AssignGatesAtTime(bcn,aircrafts,hora)
 
     refrescar_canvas()
-
-    actualitzar_status(
-        f"Ocupació mostrada per les {hora}",
-        "green"
-    )
+    actualitzar_status(f"Ocupació mostrada per les {hora}","green")
 
 def boto_merge():
-
     global aircrafts
     global departures
 
     aircrafts = ar.MergeMovements(aircrafts,departures)
 
     actualitzar_pantalla2()
-
-    actualitzar_status(
-        f"Movements merged: {len(aircrafts)}",
-        "green")
+    actualitzar_status(f"Movements merged: {len(aircrafts)}","green")
 
 def boto_night():
-
     global bcn
     global aircrafts
 
     resultat = lbl.AssignNightGates(bcn,aircrafts)
 
     if resultat == -1:
-
-        actualitzar_status(
-            "No night aircraft",
-            "red")
+        actualitzar_status("No night aircraft","red")
 
     else:
-
-        actualitzar_status(
-            "Night gates assigned",
-            "green")
+        actualitzar_status("Night gates assigned","green")
 
         refrescar_canvas()
 
@@ -666,7 +628,6 @@ def boto_play_simulation():
     simulate_step()
 
 def boto_pause_resume():
-
     global simulation_paused
 
     if not simulation_running:
@@ -689,34 +650,33 @@ def simulate_step():
     if simulation_paused:
         return
 
-    # 1. si acabem el dia
+    #si acabem el dia
     if current_time > 24 * 60:
         actualitzar_status("Simulació acabada", "green")
         simulation_running = False
         return
 
-    # 2. hora actual
+    #hora actual
     hour = current_time // 60
     time_str = f"{hour:02d}:00"
 
-    # 3. assignació dinàmica
+    #assignació dinàmica
     lbl.AssignGatesAtTime(bcn, aircrafts, time_str)
 
-    # 4. refrescar visuals
+    #refrescar visuals
     refrescar_canvas()
 
     actualitzar_status(f"Simulant hora: {time_str}", "blue")
 
-    # 5. avançar temps
+    #avançar temps
     current_time += 60
 
-    # 6. repetir automàticament
+    #repetir automàticament
     finestra.after(400, simulate_step)
 
 def boto_reset_simulacio():
     global aircrafts, departures, bcn
     global simulation_running, simulation_paused, current_time
-
 
     # parar simulació
     simulation_running = False
@@ -731,7 +691,7 @@ def boto_reset_simulacio():
     if bcn is not None:
         lbl.ResetGates(bcn)
 
-    # UI: refrescar llistes
+    #refrescar llistes
     actualitzar_pantalla2()
     actualitzar_pantalla3()
 
@@ -740,6 +700,7 @@ def boto_reset_simulacio():
 
     actualitzar_status("Simulació reiniciada al principi del dia", "blue")
 
+#càlcul i visualització de la petjada ecològica
 def format_massa(kg):
    # Mostrem tones si el nombre és gran; si no, kg
    if kg >= 1000:
@@ -755,7 +716,7 @@ def mostrar_emissions(event):
 
     idx = seleccio[0]
 
-    # identificar panel correcto
+    # identificar panel correcte
     if widget == llista_aircrafts:
         label = label_emissions
         punt = punt_emissions
@@ -774,13 +735,13 @@ def mostrar_emissions(event):
         punt.config(bg="#f4f6f7")
         return
 
-    # CLAVE: obtener texto del Listbox (NO usar aircrafts[idx])
+    #obtenir  text del Listbox
     text = widget.get(idx)
 
-    # ID del vuelo (primer trozo del string)
+    # ID del vol (primer troç del string)
     flight_id = text.split(" - ")[0]
 
-    # buscar avión real
+    # buscar avió real
     avio = None
     for a in aircrafts:
         if a.id == flight_id:
@@ -794,10 +755,7 @@ def mostrar_emissions(event):
     dades = ar.FlightEmissions(avio, list_airports)
 
     if dades is None:
-        label.config(
-            text="Origen " + avio.airport + " no trobat a la llista d'aeroports.",
-            fg="#b9770e"
-        )
+        label.config(text="Origen " + avio.airport + " no trobat a la llista d'aeroports.",fg="#b9770e")
         punt.config(bg="#f4f6f7")
         return
 
@@ -828,6 +786,7 @@ def mostrar_emissions(event):
 
     label.config(text=text_out, fg="#1a5276")
 
+#gestió de retards de vols
 def boto_gestionar_retard():
     global aircrafts, bcn
 
@@ -838,6 +797,7 @@ def boto_gestionar_retard():
     index = None
     source = None
 
+    #per saber si estic clicant en una arrivada o departure
     if llista_aircrafts.curselection():
         index = llista_aircrafts.curselection()
         source = "aircrafts"
@@ -917,22 +877,19 @@ def boto_gestionar_retard():
                 "orange"
             )
             actualitzar_pantalla2()
-
+            actualitzar_pantalla3()
             f_retard.destroy()
 
     tk.Button(f_retard, text="Aplicar retard", command=aplicar_retard,
               bg="#e67e22", fg="white", width=20).pack(pady=12)
 
-
+#INTERFÍCIE
 finestra = tk.Tk()
 finestra.title("Sistema de l'aeroport")
 finestra.state("zoomed")
 
-
-# =====================================================================
 #  TEMA VISUAL  (nomes estetica - NO canvia cap funcionalitat)
-#  Paleta "blau aviacio + blanc". Tota la logica queda exactament igual.
-# =====================================================================
+
 C_CHROME = "#e9eff5"         # fons de tots els panells
 C_PRIMARY = "#1f6aa5"        # blau dels botons
 C_PRIMARY_HOVER = "#2980b9"  # blau en passar el ratoli per sobre
@@ -1005,9 +962,9 @@ def _aplicar_tema(w):
                         highlightbackground=C_BORDER)
     except tk.TclError:
         pass
-    for fill in w.winfo_children():
+    for fill in w.winfo_children(): #aplicació recursiva d'aquest estil a tots els widgets
         _aplicar_tema(fill)
-# (la crida a _aplicar_tema es fa al final, just abans de mainloop)
+
 
 tooltip = Tooltip(finestra)
 hovered_gate=None
@@ -1016,6 +973,7 @@ style=ttk.Style()
 style.configure("TNotebook.Tab",padding=(30, 10),   # (ancho, alto)
     font=("Arial", 12, "bold"))
 
+#creació de pestanyes principals
 notebook = ttk.Notebook(finestra)
 notebook.pack(fill="both", expand=True)
 
@@ -1028,15 +986,13 @@ notebook.add(tab_aircrafts, text="Flights")
 notebook.add(tab_lebl, text="LEBL")
 
 
-
 #DEFINIR VARIABLES I POSAR NOM ALS DIFERENTS APARTATS
-#Part airport
+#Part AIRPORT
 status_bar = tk.LabelFrame(tab_airports,text="Status",font=("Arial",11,"bold"))
 status_bar.pack(side="bottom",fill="x",expand=False,ipady=10)
 
 status_label=tk.Label(status_bar, text="",anchor="w",justify="left",font=("Consolas",12),fg="black")
 status_label.pack(fill="both",expand=True,padx=10,pady=5)
-
 
 frame_esquerra = tk.Frame(tab_airports, bg="#f4f6f7")
 frame_esquerra.pack(side="left", fill="both", expand=False, padx=5)
@@ -1056,21 +1012,18 @@ frame_departures = tk.LabelFrame(left_container, text="Departures")
 frame_departures.pack(fill="both", expand=False, pady=5)
 
 
-#Parts aircraft
+#Part ARRIVALS
 status_bar2 = tk.LabelFrame(tab_aircrafts,text="Status",font=("Arial",11,"bold"))
 status_bar2.pack(side="bottom", fill="x",expand=False,ipady=10)
 
 status_label2=tk.Label(status_bar2, text="",anchor="w",justify="left",font=("Consolas",12),fg="black")
 status_label2.pack(fill="both",expand=True,padx=10,pady=5)
 
-
 frame_esquerra2 = tk.Frame(tab_aircrafts, bg="#f4f6f7")
 frame_esquerra2.pack(side="left", fill="both", expand=False, padx=5)
 
-
 contenedor_centrat2 = tk.Frame(frame_esquerra2)
 contenedor_centrat2.pack(anchor="center")
-
 
 left_container2 = tk.Frame(frame_esquerra2)
 left_container2.pack(fill="both", expand=True)
@@ -1084,22 +1037,18 @@ frame_departures2 = tk.LabelFrame(left_container2, text="Departures")
 frame_departures2.pack(fill="both", expand=False, pady=5)
 
 
-#Part Lebl
+#Part LEBL
 status_bar3 = tk.LabelFrame(tab_lebl,text="Status",font=("Arial",11,"bold"))
 status_bar3.pack(side="bottom", fill="x",expand=False,ipady=10)
 
 status_label3=tk.Label(status_bar3, text="",anchor="w",justify="left",font=("Consolas",12),fg="black")
 status_label3.pack(fill="both",expand=True,padx=10,pady=5)
 
-
-
 frame_esquerra3 = tk.Frame(tab_lebl, bg="#f4f6f7")
 frame_esquerra3.pack(side="left", fill="both", expand=False, padx=5)
 
-
 contenedor_centrat3 = tk.Frame(frame_esquerra3)
 contenedor_centrat3.pack(anchor="center")
-
 
 left_container3 = tk.Frame(frame_esquerra3)
 left_container3.pack(fill="both", expand=True)
@@ -1138,7 +1087,7 @@ llista_departures3.pack(fill="both", expand=False)
 
 
 #CO2
-frame_emissions = tk.LabelFrame(left_container, text="Petjada ecològica del vol",font=("Arial", 9, "bold"))
+frame_emissions = tk.LabelFrame(left_container, text="Petjada ecològica del vol",fg="#800080",font=("Arial", 9, "bold"))
 frame_emissions.pack(fill="x", expand=False, pady=5)
 
 fila_emis = tk.Frame(frame_emissions)
@@ -1151,32 +1100,23 @@ punt_emissions.pack(side="left", padx=(0, 8))
 label_emissions = tk.Label(fila_emis,text="Selecciona un vol per veure'n el combustible i el CO2.",justify="left", anchor="w", font=("Consolas", 9))
 label_emissions.pack(side="left", fill="x")
 
-frame_emissions2 = tk.LabelFrame(left_container2, text="Petjada ecològica del vol",fg="#1e8449", font=("Arial", 9, "bold"))
+frame_emissions2 = tk.LabelFrame(left_container2, text="Petjada ecològica del vol",fg="#800080", font=("Arial", 9, "bold"))
 frame_emissions2.pack(fill="x", expand=False, pady=5)
-
-
-
 
 
 # Quan se selecciona un vol a la llista, mostrem la seva petjada
 llista_aircrafts.bind("<<ListboxSelect>>", mostrar_emissions)
 llista_aircrafts2.bind("<<ListboxSelect>>", mostrar_emissions)
 llista_aircrafts3.bind("<<ListboxSelect>>", mostrar_emissions)
+
+
 #PART AIRPORTS
-
-
 bloc1 = tk.LabelFrame(contenedor_centrat, text="Airports Management")
 bloc1.pack(fill="x", padx=10, pady=5)
-
-
-
 
 tk.Button(bloc1, text="Carregar fitxer aeroports", width=25, command=boto_carregar).grid(row=0, column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc1, text="Afegir aeroport", width=25,command=boto_afegir).grid(row=1, column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc1, text="Eliminar aeroport",width=25, command=boto_eliminar).grid(row=2, column=0,padx=3,pady=3,sticky="ew")
-
-
-
 
 tk.Button(bloc1, text="Validar schengen",width=25, command=boto_schengen).grid(row=0, column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc1, text="Schengen/No Schengen", width=25,command=boto_grafic).grid(row=1, column=1,padx=3,pady=3,sticky="ew")
@@ -1189,24 +1129,19 @@ tk.Label(frame_grafic,text="Dashboard Visual",font=("Arial", 12, "bold"),bg="#ec
 
 
 #PART AIRCRAFT
-
-
 bloc2 = tk.LabelFrame(contenedor_centrat2, text="Aircrafts Management")
 bloc2.pack(fill="x", padx=10, pady=5)
-
-
-
 
 tk.Button(bloc2, text="Carregar fitxer vols", width=25,command=boto_carregar_arrivals).grid(row=0, column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Arrivades més llunyanes",width=25,command=ShowLongDistanceButton).grid(row=1, column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Trajectòries a Barcelona",width=25,command=boto_mapa2).grid(row=2, column=0,padx=3,pady=3,sticky="ew")
 
-
 tk.Button(bloc2,text="Freqüència d'aterratge/dia",width=25,command=PlotArrivalsButton).grid(row=0, column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Nombre de vols per aerolínea", width=25,command=PlotAirlinesButton).grid(row=1, column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc2,text="Arrivant des de Schengen o no",width=25,command=PlotFlightsTypeButton).grid(row=2, column=1,padx=3,pady=3,sticky="ew")
-tk.Button(bloc2, text="Gestionar retard vol",width=25, command=boto_gestionar_retard).grid(row=3, column=0, columnspan=2,padx=3, pady=3, sticky="ew")
 
+boto_extra=tk.Button(bloc2,text="Gestionar retard vol",command=boto_gestionar_retard)
+boto_extra.grid(row=3, column=0, columnspan=2, padx=3, pady=3, sticky="ew")
 bloc3 = tk.LabelFrame(contenedor_centrat2, text="System")
 bloc3.pack(fill="x", padx=10, pady=5)
 
@@ -1214,15 +1149,12 @@ bloc3.pack(fill="x", padx=10, pady=5)
 tk.Button(bloc3,text="Guardar aeroports Schengen",width=25,command=boto_guardar_aeroports).grid(row=0, column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc3,text="Guardar vols",width=25,command=boto_guardar_vols).grid(row=0, column=1,padx=3,pady=3,sticky="ew")
 
-
 frame_grafic2 = tk.Frame(tab_aircrafts, bg="#ecf0f1", width=550)
 frame_grafic2.pack(side="left", fill="both", expand=True, padx=15)
 tk.Label(frame_grafic2,text="Dashboard Visual",font=("Arial", 12, "bold"),bg="#ecf0f1").pack()
 
 
 #PART LEBL
-
-
 bloc4 = tk.LabelFrame(contenedor_centrat3, text="LEBL Gate Management")
 bloc4.pack(fill="x", padx=10, pady=5)
 
@@ -1232,7 +1164,8 @@ bloc5.pack(fill="x", padx=10, pady=5)
 
 tk.Button(bloc4,text="Carregar estructura LEBL",width=25,command=boto_carregar_lebl).grid(row=0,column=0,padx=3,pady=3,sticky="ew")
 tk.Button(bloc4,text="Assignar gate al vol seleccionat",width=25,command=boto_assignar_gate).grid(row=1,column=0,padx=3,pady=3,sticky="ew")
-tk.Button(bloc4,text="Mostrar terminals i gates",width=25,command=boto_mostrar_gates).grid(row=0,column=1,padx=3,pady=3,sticky="ew")
+boto_extra5=tk.Button(bloc4,text="Mostrar terminals i gates",width=25,command=boto_mostrar_gates)
+boto_extra5.grid(row=0,column=1,padx=3,pady=3,sticky="ew")
 tk.Button(bloc4,text="Assignar tots els vols",width=25,command=boto_assignacio_intelligent).grid(row=1,column=1,padx=3,pady=3,sticky="ew")
 
 
@@ -1243,7 +1176,8 @@ tk.Button(bloc5,text="Assignar night aircraft",width=25,command=boto_night).grid
 tk.Label(bloc5, text="Hora (HH:MM)").grid(row=2,column=0,padx=3,pady=3)
 entry_hora = tk.Entry(bloc5,width=10)
 entry_hora.grid(row=2,column=1,padx=3,pady=3)
-tk.Button(bloc5,text="Mostrar estat a aquesta hora",command=boto_mostrar_hora).grid(row=3,column=0,columnspan=2,padx=3,pady=3,sticky="ew")
+boto_extra1=tk.Button(bloc5,text="Mostrar estat a aquesta hora",command=boto_mostrar_hora)
+boto_extra1.grid(row=3,column=0,columnspan=2,padx=3,pady=3,sticky="ew")
 
 
 #on estan els gràfic i simulador
@@ -1255,12 +1189,35 @@ control_panel.pack(fill="x",padx=10, pady=5)
 
 visual_panel=tk.Frame(frame_grafic3, bg="#ecf0f1")
 visual_panel.pack(fill="both", expand=True)
-tk.Button(control_panel,text="Play Day Simulation",command=boto_play_simulation).grid(row=0,column=0,padx=3,pady=3,sticky="ew")
-tk.Button(control_panel,text="Pause / Resume",command=boto_pause_resume).grid(row=0,column=1,padx=3,pady=3,sticky="ew")
-tk.Button(control_panel,text="Reset Simulation",command=boto_reset_simulacio).grid(row=0,column=2,padx=3,pady=3,sticky="ew")
+boto_extra2=tk.Button(control_panel,text="Play Day Simulation",command=boto_play_simulation)
+boto_extra2.grid(row=0,column=0,padx=3,pady=3,sticky="ew")
+boto_extra3=tk.Button(control_panel,text="Pause / Resume",command=boto_pause_resume)
+boto_extra3.grid(row=0,column=1,padx=3,pady=3,sticky="ew")
+boto_extra4=tk.Button(control_panel,text="Reset Simulation",command=boto_reset_simulacio)
+boto_extra4.grid(row=0,column=2,padx=3,pady=3,sticky="ew")
 
 # Apliquem el tema visual a tota la finestra (nomes aparenca, res funcional)
 _aplicar_tema(finestra)
+
+#canviar color botons extres
+boto_extra.configure(bg="#9370DB")
+boto_extra.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
+boto_extra1.configure(bg="#9370DB",activebackground="#A78BFA")
+boto_extra1.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra1.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
+boto_extra2.configure(bg="#9370DB",activebackground="#A78BFA")
+boto_extra2.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra2.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
+boto_extra3.configure(bg="#9370DB",activebackground="#A78BFA")
+boto_extra3.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra3.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
+boto_extra4.configure(bg="#9370DB",activebackground="#A78BFA")
+boto_extra4.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra4.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
+boto_extra5.configure(bg="#9370DB",activebackground="#A78BFA")
+boto_extra5.bind("<Enter>",lambda e: e.widget.configure(bg="#A78BFA"))
+boto_extra5.bind("<Leave>",lambda e: e.widget.configure(bg="#9370DB"))
 
 finestra.mainloop()
 

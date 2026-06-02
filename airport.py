@@ -9,7 +9,7 @@ class Airport:
 
 EsSc=['LO', 'EB', 'LK', 'LC', 'EK', 'EE', 'EF', 'LF', 'ED', 'LG', 'EH', 'LH', 'BI','LI', 'EV', 'EY', 'EL', 'LM', 'EN', 'EP', 'LP', 'LZ', 'LJ', 'LE', 'ES', 'LS']
 
-
+#Comprova si són aeroports de la zona schengen o no
 def IsSchengenAirport(code):
     Schengen = False
     if code == " ":
@@ -25,10 +25,10 @@ def IsSchengenAirport(code):
 
 
 def SetSchengen(airport):
-    resultat = IsSchengenAirport(airport.ICAO)
+    resultat = IsSchengenAirport(airport.ICAO) #Usa l'altra funció per torbar i assignas si els aeroports són de la zona schengen o no
     airport.schengen=resultat
 
-
+#Posa l'avió en el format requerit
 def PrintAirport(airport):
     print("ICAO:", airport.ICAO)
     print("Latitude:", airport.latitude)
@@ -40,21 +40,18 @@ def LoadAirports(filename):
     aeroports=[]
 
     try:
-        file=open(filename, "r")
+        file=open(filename, "r") #Obre un fitxer i el llegeix
     except FileNotFoundError:
         return aeroports
 
     file.readline()
     linea=file.readline()
 
-
-    while linea != "":
+    while linea != "": #Separa per parts, i canvia a les unitats que es necessiten per la ubicació
         parts= linea.split()
-
 
         lat_text =parts[1]
         lon_text=parts[2]
-
 
         graus_lat=int(lat_text[1:3])
         minuts_lat=int(lat_text[3:5])
@@ -82,14 +79,12 @@ def LoadAirports(filename):
     return aeroports
 
 
-
-
 def SaveSchengenAirports(airports,filename):
     if len(airports)==0:
         return -1
     try:
         f=open(filename, "w")
-        f.write("CODE LAT LON\n")
+        f.write("CODE LAT LON\n") #Escriu un nou fitxer amb el format demanat
 
         i=0
         while i < len(airports):
@@ -106,7 +101,7 @@ def SaveSchengenAirports(airports,filename):
 def AddAirport(airports,airport):
     i=0
     trobat=False
-    while i < len(airports) and not trobat:
+    while i < len(airports) and not trobat: #Afegeix un aeroport
         if airports[i].ICAO == airport.ICAO:
             trobat=True
         i=i+1
@@ -118,7 +113,7 @@ def AddAirport(airports,airport):
 def RemoveAirport(airports,code):
     i=0
     trobat=False
-    while i < len(airports) and not trobat:
+    while i < len(airports) and not trobat: #Elimina un aeroport si el troba
         if airports[i].ICAO == code:
             airports.remove(airports[i])
             trobat=True
@@ -129,7 +124,7 @@ import os
 import matplotlib.pyplot as plt
 
 def PlotAirports(airports):
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots() #Crea un plot que ensenya els schengen i els no schengen
     schengen = 0
     noschengen = 0
     i = 0
@@ -148,13 +143,13 @@ def PlotAirports(airports):
     return fig
 
 def MapAirports(airports):
-   f = open("airports.kml", "w")
+   f = open("airports.kml", "w") #Obre un document compatible amb google earth
    f.write("""<kml xmlns="http://www.opengis.net/kml/2.2">
    <Document>""")
    i=0
    while i < len(airports):
        if airports[i].schengen:
-           icon="http://maps.google.com/mapfiles/kml/paddle/blu-circle.png"
+           icon="http://maps.google.com/mapfiles/kml/paddle/blu-circle.png" #Posa el color de les marques en google earth
        else:
            icon="http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png"
        f.write(f"""
@@ -174,7 +169,7 @@ def MapAirports(airports):
        i=i+1
    f.write("</Document>\n</kml>")
    f.close()
-   os.startfile("airports.kml")
+   os.startfile("airports.kml") #Posa les marques als punts buscats anteriorment amb el format correcte
 
 
 
