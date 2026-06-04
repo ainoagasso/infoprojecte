@@ -22,3 +22,5 @@ Extends the application by taking into account aircraft departures, since depart
 - **Time-based gate status visualization:** by entering a specific time, the system shows the occupancy status of all gates at that moment.
 - **Interactive terminal visualization:** when displaying the terminal layout, hovering over a gate shows a popup with detailed information. Right-clicking on a gate allows the user to manually assign or remove a flight.
 - **Simulation mode:** once arrivals and departures are merged (or not), the system simulates hourly changes in gate occupancy throughout the day.
+The video can be found in the following link: https://youtu.be/HEPRNwCmTQQ
+
